@@ -1,0 +1,30 @@
+// Package main provides ...
+package main
+
+import (
+	"fmt"
+)
+
+func partenza( ch chan<- int) {
+	fmt.Println("scrivo")
+	for i := 0; ; i++ {
+		ch <- i 
+	}
+}
+
+func arrivo( ch <-chan int) {
+	for  {
+		fmt.Println("leggo",<-ch)
+	}
+	
+}
+
+func main() {
+	fmt.Println("start")
+	ch1:= make(chan int)
+	fmt.Println("debug")
+	go partenza(ch1)
+	fmt.Println("debug")
+	go arrivo(ch1)
+		
+}
