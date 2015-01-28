@@ -13,7 +13,7 @@
 //film max punteggio
 
 //campione persone/thread
-#define N 4
+#define N 15
 
 //numero di film e domande
 //ogni film K domane
@@ -24,6 +24,10 @@ int sondaggio[K][K];
 
 //accesso mutualmente esclusivo
 pthread_mutex_t m;
+
+static sem_t s;
+static sem_t b;
+
 
 int pers_int;
 
@@ -50,13 +54,14 @@ void fill_data()
 		
 	}
 }
+
 void print_result()
 {
 	int i,j,z;
-	for (j = 0; j < K; ++j)
-	{
-		printf("film [%d] - tot: %d \n",j, total[j]);
-	}
+	/*for (j = 0; j < K; ++j)*/
+	/*{*/
+		/*printf("film [%d] - tot: %d \n",j, total[j]);*/
+	/*}*/
 	printf("======stampa parziale =======\n");
 	for (i = 0; i < pers_int; ++i)
 	{
@@ -111,6 +116,16 @@ void responde(void *arg)
 	print_result();
 
 	pthread_mutex_unlock(&m);
+	if (pers_int == N)
+	{
+		sem_post (&s);
+	}
+	//finito di compilare aspetto di guardare il film
+	sem_wait (&b);
+	printf("th [%d] ha guardato il film\n", id);
+	sem_post (&b);
+	
+	
 	pthread_exit((void *) id);
 }
 
@@ -121,9 +136,15 @@ int main(int argc, char *argv[])
 	int i,j,z;
 	int cur_film;
 	int max;
+	int k;
 	pers_int = 0;
 	pthread_t th[N];
 	printf("------ start -------\n");
+
+	// semaforo parte bloccato
+	sem_init(&s,0,0);
+	sem_init(&b,0,0);
+
 	for (i = 0; i < N; ++i)
 	{
 		if(pthread_create(&th[i],NULL,responde,(void *)i)<0)
@@ -132,16 +153,18 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
-	for (i = 0; i < N; ++i)
-	{
-		if(pthread_join(th[i],(void *)&retval[i])){
-			fprintf(stderr, "thread [%d] terminato con error \n",(int) retval[i]);
-			exit(1);
-		}
-		else {
-			printf("pthread [%d] termiato con successo\n", i);
-		}
-	}
+	//finche tutte pers non intervistate aspetto
+	sem_wait (&s);
+	printf("sondaggi finiti\n");
+	/*k = 1;*/
+	/*while(k) {*/
+		/*if (pers_int = n)*/
+		/*{*/
+			/*//se tutt persone intervistate stampo*/
+			/*k=0;*/
+		/*}*/
+	/*}*/
+
 	max=0;
 	for (j = 0; j < K; ++j)
 	{
@@ -161,6 +184,19 @@ int main(int argc, char *argv[])
 		}
 	}
 	printf("best film: %d\n", max);
+	// faccio partire la visione
+	sem_post (&b);
+
+	for (i = 0; i < N; ++i)
+	{
+		if(pthread_join(th[i],(void *)&retval[i])){
+			fprintf(stderr, "thread [%d] terminato con error \n",(int) retval[i]);
+			exit(1);
+		}
+		else {
+			printf("pthread [%d] termiato con successo\n", i);
+		}
+	}
 	
 	return 0;
 }

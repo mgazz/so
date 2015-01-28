@@ -48,8 +48,11 @@ void entraNORD(monitor* m, int id,int tipo)
 {
 	pthread_mutex_lock (&m->lock);
 
-	while ( m->sulponte[NORD] + m->sulponte[SUD] == MAX || (tipo == 0 && m->sospesi[EN_N][E]>0) || (abs(m->sulponte[NORD]-m->sulponte[SUD])==K &&
-	m->sulponte[NORD] > m->sulponte[SUD]))
+	//while necessario perche bisogna ritestare la condizione?
+	while ( m->sulponte[NORD] + m->sulponte[SUD] == MAX || 
+			(tipo == 0 && m->sospesi[EN_N][E]>0) || 
+			(abs(m->sulponte[NORD]-m->sulponte[SUD])==K &&
+			 m->sulponte[NORD] > m->sulponte[SUD]))
 	{
 		printf("Mezzo %d sospeso di tipo %d in ingresso della corsia NORD!\n", id,tipo);
 		m->sospesi[EN_N][tipo]++;
@@ -78,7 +81,9 @@ void entraSUD(monitor* m, int id,int tipo)
 {
 	pthread_mutex_lock (&m->lock);
 
-	while ( m->sulponte[NORD] + m->sulponte[SUD] >= MAX || (tipo == 0 && m->sospesi[EN_S][E]>0) ||
+	while ( 
+			m->sulponte[NORD] + m->sulponte[SUD] >= MAX || 
+			(tipo == 0 && m->sospesi[EN_S][E]>0) ||
 	(abs(m->sulponte[NORD]-m->sulponte[SUD])==K && m->sulponte[NORD] < m->sulponte[SUD]))
 	{
 		printf("Mezzo %d sospeso di tipo %d in ingresso della corsia SUD!\n", id,tipo);
@@ -107,7 +112,9 @@ void entraSUD(monitor* m, int id,int tipo)
 void esceNORD(monitor* m, int id,int tipo) //ESCE DALLA CORSIA NORD
 {
 	pthread_mutex_lock (&m->lock);
-	while (abs(m->sulponte[NORD]-m->sulponte[SUD])==K && m->sulponte[NORD] < m->sulponte[SUD])
+	while (
+			abs(m->sulponte[NORD]-m->sulponte[SUD])==K && 
+			m->sulponte[NORD] < m->sulponte[SUD])
 	{
 		printf("Mezzo %d di tipo %d proveniente da nord sospeso in uscita!\n", id, tipo);
 		m->sospesi[ES_N][tipo]++;
@@ -130,10 +137,14 @@ void esceNORD(monitor* m, int id,int tipo) //ESCE DALLA CORSIA NORD
 	pthread_mutex_unlock (&m->lock);
 }
 
+
+
 void esceSUD(monitor* m, int id,int tipo) //ESCE DALLA CORSIA SUD
 {
 	pthread_mutex_lock (&m->lock);
-	while (abs(m->sulponte[NORD]-m->sulponte[SUD])==K && m->sulponte[NORD] > m->sulponte[SUD])
+	while (
+			abs(m->sulponte[NORD]-m->sulponte[SUD])==K && 
+			m->sulponte[NORD] > m->sulponte[SUD])
 	{
 		printf("Mezzo %d di tipo %d proveniente da nord sospeso in uscita!\n", id, tipo);
 		m->sospesi[ES_S][tipo]++;
@@ -142,6 +153,7 @@ void esceSUD(monitor* m, int id,int tipo) //ESCE DALLA CORSIA SUD
 	}
 	printf("Mezzo %d di tipo %d ESCE dalla corsia SUD!\n", id, tipo);
 	m->sulponte[SUD]--;
+
 	if (m->sospesi[EN_S][E] > 0)
 		pthread_cond_signal(&m->coda[EN_S][E]);
 
