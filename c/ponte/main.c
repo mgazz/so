@@ -17,7 +17,7 @@
 #define s 0
 #define e 1
 #define o 0
-#define in 0
+#define in 1
 #define out 0
 
 typedef struct
@@ -163,10 +163,10 @@ void isud(mon* m,int id,int tipo)
 {
 	pthread_mutex_lock(&m->mut);
 	while(
-			abs(m->vn - m->vs)>k ||
+			abs(m->vn - m->vs) > k ||
 			abs(m->vn - m->vs)==k && (m->vn < m->vs) ||
 			(tipo==o && m->vcoda[s][in][e]>0) ||
-			(m->vn + m->vs) > max
+			(m->vn + m->vs) == max
 				) {
 		m->vcoda[s][in][tipo]++;
 		pthread_cond_wait(&m->coda[s][in][tipo],&m->mut);
@@ -174,21 +174,28 @@ void isud(mon* m,int id,int tipo)
 	}
 	printf("th[%d]-mezzo tipo [%d] entrato sud\n",id,tipo);
 	m->vs++;
+	printf("th[%d]-m->vs: %d\n",id,m->vs);
 
 	//avendo terminato posso far partire un altro thread
 	//scelgo il thread che mi fa rispettare i parametri
 	if (m->vcoda[s][out][e]>0)
 	{
+		printf("th[%d]-parte sud out emerg\n",id);
 		pthread_cond_signal(&m->coda[s][out][e]);
 	}
 	else if (m->vcoda[s][out][o]>0) {
+		printf("th[%d]-parte sud out ord\n",id);
+		
 		pthread_cond_signal(&m->coda[s][out][o]);
 	}
 	else if (m->vcoda[n][out][e]>0)
 	{
+		printf("th[%d]-parte nord out em\n",id);
 		pthread_cond_signal(&m->coda[n][out][e]);
 	}
 	else if (m->vcoda[n][out][o]>0) {
+		printf("th[%d]-parte nord out ord \n",id);
+		
 		pthread_cond_signal(&m->coda[n][out][o]);
 	}
 	pthread_mutex_unlock(&m->mut);
@@ -198,6 +205,8 @@ void isud(mon* m,int id,int tipo)
 void* psud(void* arg)
 {
 	int id = (int)arg;
+	printf("th[%d]-partito\n",id);
+	
 	int tipo = rand()%2;
 	isud(&m,id,tipo);
 	sleep(1);
@@ -209,6 +218,7 @@ void* psud(void* arg)
 void* pnord(void* arg)
 {
 	int id = (int)arg;
+	printf("th[%d]-partito\n",id);
 	int tipo = rand()%2;
 	inord(&m,id,tipo);
 	sleep(1);
@@ -241,21 +251,17 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 		}
-
-		//aspetto risultati
-		for (i = 0; i < N; ++i)
-		{
-			if(pthread_join(th[i],NULL)){
-				fprintf(stderr, "thread [%d] terminato con error \n",i);
-				exit(1);
-			}
-			else {
-				printf("pthread [%d] termiato con successo\n", i);
-			}
-		}
-		
 	}
-	
-	
+	//aspetto risultati
+	for (i = 0; i < N; ++i)
+	{
+		if(pthread_join(th[i],NULL)){
+			fprintf(stderr, "thread [%d] terminato con error \n",i);
+			exit(1);
+		}
+		else {
+			printf("pthread [%d] terminato con successo\n", i);
+		}
+	}
 	return 0;
 }
