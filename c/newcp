@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#echo $#
+
+if [[ $# -ne 1 ]]; then
+	echo "dammi solo il nome"
+	exit 1
+fi
+
+name="main"
+
+if [[ -d "$1" ]]; then
+	echo "cartella già esistente"
+	exit 1
+fi
+
+mkdir $1
+cd $1
+
+touch $name".c"
+
+touch Makefile
+
+echo "make: "$name".c" >> Makefile
+echo -e "\t gcc -D_REENTRANT -w -o "$name" "$name".c -pthread " >> Makefile
+
