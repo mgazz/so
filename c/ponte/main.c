@@ -17,7 +17,7 @@
 #define s 0
 #define e 1
 #define o 0
-#define in 1
+#define in 0
 #define out 0
 
 typedef struct
@@ -57,7 +57,7 @@ void onord(mon* m,int id,int tipo)
 
 	pthread_mutex_lock(&m->mut);
 	while(
-			abs(m->vn - m->vs)==k && (m->vn > m->vs)
+			abs(m->vn - m->vs)==k && (m->vn < m->vs)
 			) {
 		printf("th[%d]-tipo[%d]coda out nord\n",id,tipo);
 		m->vcoda[n][out][tipo]++;
@@ -69,17 +69,21 @@ void onord(mon* m,int id,int tipo)
 
 	if (m->vcoda[n][in][e]>0)
 	{
+		printf("th[%d]-start nord in em\n",id);
 		pthread_cond_signal(&m->coda[n][in][e]);
 	}
 	else if (m->vcoda[n][in][o]>0) {
+		printf("th[%d]-start sud in ord\n",id);
 		pthread_cond_signal(&m->coda[n][in][o]);
 	}
 	else if(m->vn > m->vs){ 
 		if (m->vcoda[s][in][e]>0)
 		{
+			printf("th[%d]-start sud out em\n",id);
 			pthread_cond_signal(&m->coda[s][out][e]);
 		}
 		else if (m->vcoda[s][in][o]>0) {
+			printf("th[%d]-start sud out ord\n",id);
 			pthread_cond_signal(&m->coda[s][out][o]);
 		}
 	}
@@ -103,18 +107,22 @@ void osud(mon* m,int id,int tipo)
 
 	if (m->vcoda[s][in][e]>0)
 	{
+		printf("th[%d]-start sud in em\n",id);
 		pthread_cond_signal(&m->coda[s][in][e]);
 	}
 	else if (m->vcoda[s][in][o]>0) {
+		printf("th[%d]-start sud in ord\n",id);
 		pthread_cond_signal(&m->coda[s][in][o]);
 	}
 	else if(m->vn < m->vs){ 
 		if (m->vcoda[n][in][e]>0)
 		{
-			pthread_cond_signal(&m->coda[n][out][e]);
+			printf("th[%d]-start nord in em\n",id);
+			pthread_cond_signal(&m->coda[n][in][e]);
 		}
 		else if (m->vcoda[n][in][o]>0) {
-			pthread_cond_signal(&m->coda[n][out][o]);
+			printf("th[%d]-start nord in ord\n",id);
+			pthread_cond_signal(&m->coda[n][in][o]);
 		}
 	}
 	pthread_mutex_unlock(&m->mut);
@@ -142,16 +150,20 @@ void inord(mon* m,int id,int tipo)
 	//scelgo il thread che mi fa rispettare i parametri
 	if (m->vcoda[n][out][e]>0)
 	{
+		printf("th[%d]-start nord out em\n",id);
 		pthread_cond_signal(&m->coda[n][out][e]);
 	}
 	else if (m->vcoda[s][out][o]>0) {
+		printf("th[%d]-start nord out ord\n",id);
 		pthread_cond_signal(&m->coda[n][out][o]);
 	}
 	else if (m->vcoda[s][out][e]>0)
 	{
+		printf("th[%d]-start sud out em\n",id);
 		pthread_cond_signal(&m->coda[s][out][e]);
 	}
 	else if (m->vcoda[s][out][o]>0) {
+		printf("th[%d]-start sud out ord\n",id);
 		pthread_cond_signal(&m->coda[s][out][o]);
 	}
 	pthread_mutex_unlock(&m->mut);
@@ -163,10 +175,10 @@ void isud(mon* m,int id,int tipo)
 {
 	pthread_mutex_lock(&m->mut);
 	while(
-			abs(m->vn - m->vs) > k ||
+			abs(m->vn - m->vs)>k ||
 			abs(m->vn - m->vs)==k && (m->vn < m->vs) ||
 			(tipo==o && m->vcoda[s][in][e]>0) ||
-			(m->vn + m->vs) == max
+			(m->vn + m->vs) > max
 				) {
 		m->vcoda[s][in][tipo]++;
 		pthread_cond_wait(&m->coda[s][in][tipo],&m->mut);
@@ -174,28 +186,26 @@ void isud(mon* m,int id,int tipo)
 	}
 	printf("th[%d]-mezzo tipo [%d] entrato sud\n",id,tipo);
 	m->vs++;
-	printf("th[%d]-m->vs: %d\n",id,m->vs);
 
 	//avendo terminato posso far partire un altro thread
 	//scelgo il thread che mi fa rispettare i parametri
 	if (m->vcoda[s][out][e]>0)
 	{
-		printf("th[%d]-parte sud out emerg\n",id);
+		printf("th[%d]-start sud out em\n",id);
+		
 		pthread_cond_signal(&m->coda[s][out][e]);
 	}
 	else if (m->vcoda[s][out][o]>0) {
-		printf("th[%d]-parte sud out ord\n",id);
-		
+		printf("th[%d]-start sud out ord\n",id);
 		pthread_cond_signal(&m->coda[s][out][o]);
 	}
 	else if (m->vcoda[n][out][e]>0)
 	{
-		printf("th[%d]-parte nord out em\n",id);
+		printf("th[%d]-start nord out em\n",id);
 		pthread_cond_signal(&m->coda[n][out][e]);
 	}
 	else if (m->vcoda[n][out][o]>0) {
-		printf("th[%d]-parte nord out ord \n",id);
-		
+		printf("th[%d]-start nord out ord\n",id);
 		pthread_cond_signal(&m->coda[n][out][o]);
 	}
 	pthread_mutex_unlock(&m->mut);
@@ -205,8 +215,6 @@ void isud(mon* m,int id,int tipo)
 void* psud(void* arg)
 {
 	int id = (int)arg;
-	printf("th[%d]-partito\n",id);
-	
 	int tipo = rand()%2;
 	isud(&m,id,tipo);
 	sleep(1);
@@ -218,7 +226,6 @@ void* psud(void* arg)
 void* pnord(void* arg)
 {
 	int id = (int)arg;
-	printf("th[%d]-partito\n",id);
 	int tipo = rand()%2;
 	inord(&m,id,tipo);
 	sleep(1);
@@ -260,8 +267,10 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 		else {
-			printf("pthread [%d] terminato con successo\n", i);
+			printf("pthread [%d] termiato con successo\n", i);
 		}
 	}
+	
+	
 	return 0;
 }
