@@ -1,6 +1,4 @@
 #!/bin/bash
-
-clear
 rm main
 make
 ./main
