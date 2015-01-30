@@ -11,9 +11,9 @@
 // veicoli emergenza/ordinari
 // favoriti in entrata veicoli emergenza
 
-#define N 3
-#define MAX 4
-#define K 1
+#define N 15
+#define MAX 5
+#define K 2
 
 #define ND 1
 #define SD 0
@@ -24,7 +24,7 @@
 #define EM 1
 #define OR 0
 
-typedef struct mon
+typedef struct 
 {
 	int vn; //veicoli nord
 	int vs; //veicoli sud
@@ -33,7 +33,7 @@ typedef struct mon
 	pthread_cond_t coda[2][2][2];
 	// auto in coda
 	int vcoda[2][2][2];
-};
+}mon;
 
 //monitor
 mon p;
@@ -72,7 +72,6 @@ void init(mon* m)
 {
 	pthread_mutex_init(&m->mut,NULL);
 	int i,j,z;
-	char dir,vers,tipo;
 	printf("----- inizializzazione variabili ------\n");
 	pthread_mutex_init(&m->mut,NULL);
 	m->vn = 0;

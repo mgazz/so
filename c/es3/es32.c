@@ -19,7 +19,7 @@ typedef struct
 	int N2; // quantitÃ  di ingrediente I2  presente nel recipiente
 	int VersN1; // quantitÃ  di ingrediente I1 in fase di versamento
 	int VersN2; // quantitÃ  di ingrediente I2 in fase di versamento
-        int SpillI1; //quantitÃ  di ingrediente I1 in fase di spillatura
+  int SpillI1; //quantitÃ  di ingrediente I1 in fase di spillatura
 	int SpillI2; //quantitÃ  di ingrediente I2 in fase di spillatura
 	
 	pthread_cond_t coda1; // coda portatori I1
@@ -76,19 +76,23 @@ void stampastato(miscelatore* r)
 void inizioV(miscelatore* r, int ing)
 {	pthread_mutex_lock(&r->mutex);
 	if (ing ==0) // I1
-	{	while(	spillaturaON(r) ||	// c'Ã¨ qualcuno che sta spillando
+	{	
+		while(	spillaturaON(r) ||	// c'Ã¨ qualcuno che sta spillando
 			  r->N1+r->VersN1 == MAX1)  // il recipiente contiene il valore massimo per I1
-	{	r->sospI1++;
-		pthread_cond_wait(&r->coda1, &r->mutex);
-		r->sospI1--;
-	}
+		{	
+			r->sospI1++;
+			pthread_cond_wait(&r->coda1, &r->mutex);
+			r->sospI1--;
+		}
 		r->VersN1++;
 	}
 	else if (ing==I2)
-	{	while(	spillaturaON(r) ||				// c'Ã¨ qualcuno che sta spillando
+	{	
+		while(	spillaturaON(r) ||				// c'Ã¨ qualcuno che sta spillando
 			  (r->N2+r->VersN2 == MAX2)||		// il recipiente contiene il valore massimo per I2
 			  ((r->sospI1>0) && (r->N1+r->VersN1<MAX1)))  // vincolo di prioritÃ  
-	{	r->sospI2++;
+	{	
+		r->sospI2++;
 		pthread_cond_wait(&r->coda2, &r->mutex);
 		r->sospI2--;
 	}
