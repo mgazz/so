@@ -1,0 +1,302 @@
+#fai funzione che prende in input un numero e cerca la parola su cui e il cursore e scambia con input
+snippet monitor "monitor" 
+typedef struct
+{
+	int ${1:val};
+	pthread_cond_t ${2:coda}[${3:N}]; 
+	int ${4:ncoda}[$3]; 
+	pthread_mutex_t mut;
+} monitor;
+
+monitor m; 
+
+void init(monitor* m)
+{
+	int i;
+	printf("----- inizializzazione monitor ------\n");
+	m->$1=0;
+	printf("m->$1: %d\n", m->$1);	
+	$0
+
+	for (i = 0; i < $3; ++i)
+	{
+		pthread_cond_init(&m->$2[i],NULL);
+		m->$4[i]=0;
+		printf("$4[ %d ][ %d ][ %d ]: %d \n",i,m->$4[i]);
+	}
+	pthread_mutex_init(&m->mut,NULL);
+	printf("---------------------------------------\n");
+}
+endsnippet
+
+snippet critic "start stop critic" b
+void start${1:S}(monitor* m,${2:arg})
+{
+	pthread_mutex_lock(&m->mut);
+	//zona critica
+	$0
+
+	pthread_mutex_unlock(&m->mut);
+}
+
+void stop${1:S}(monitor* m,${2:arg})
+{
+	pthread_mutex_lock(&m->mut);
+	//zona critica
+
+	pthread_mutex_unlock(&m->mut);
+}
+endsnippet
+snippet routine "start process" b
+void* ${1:routine}(void* arg)
+{
+	int id = (int)arg;
+	$0
+	startS${2:S}(&p,id,tipo);
+	sleep(1);
+	stop${2:S}(&p,id,tipo);
+	pthread_exit(NULL);
+}
+endsnippet
+
+snippet oldmonitor "monitor" 
+typedef struct
+{
+	int ${1:val}
+	pthread_cond_t ${2:coda}[${3:N}]; 
+	int ${4:ncoda}[${3:N}]; 
+	pthread_mutex_t mut;
+} ${5:monitor};
+
+$5 ${6:monitor_name};
+
+void init($5* $6)
+{
+	int i;
+	printf("----- inizializzazione monitor $5------\n");
+	$6->$1=0;
+	printf("$6->$1: %d\n", $6->$1);	
+
+	for (i = 0; i < $3; ++i)
+	{
+		pthread_cond_init(&$6->$2[i],NULL);
+		$6->$4[i]=0;
+		printf("$4[ %d ][ %d ][ %d ]: %d \n",i,m->$4[i]);
+	}
+	pthread_mutex_init(&m->mut,NULL);
+	printf("---------------------------------------\n");
+}
+endsnippet
+
+snippet sem_wait "se valore sem 0 sospende th chiamante" 
+sem_wait (&${1:my_sem});
+$0
+endsnippet
+
+
+snippet sem_post "se almeno 1 th sospeso nella coda del sem viene risvegliato, se no sem incr"
+sem_post (&${1:my_sem});
+$0
+endsnippet
+
+snippet pcreate "pthread_create" 
+for (i = 0; i < ${1:NUM_THREAD}; ++i)
+{
+	if(pthread_create(&${3:thread},NULL,${2:routine},${3:(void *)i})<0)
+	{
+		fprintf(stderr, "pthread_create error for thread 1\n");
+		exit(1);
+	}
+}
+$0
+endsnippet
+
+snippet pjoin "pthread_join" 
+for (i = 0; i < ${1:NUM_THREAD}; ++i)
+{
+	if(pthread_join(${2:thread}[i],(void *)&${3:retval})){
+		fprintf(stderr, "thread [%d] terminato con error \n",i);
+		exit(1);
+	}
+	else {
+		printf("pthread [%d] termiato con successo\n", i);
+	}
+}
+$0
+endsnippet
+
+snippet pimport "import for pthread" 
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+endsnippet
+snippet pfun "void* func" 
+void ${1:name}(void* arg)
+{
+	int id = (int)arg;
+	$0
+}
+endsnippet
+
+snippet mounfun "monitor function" 
+
+void ${1:name}(${2:void* arg})
+{
+	int id = (int)arg;
+
+	pthread_mutex_lock(&m->mut);
+	$0
+	pthread_mutex_unlock(&m->mut);
+}
+endsnippet
+
+
+snippet void "(void *)" 
+(void *)
+endsnippet
+
+
+
+#=============== old stuff ==========
+
+snippet mal "malloc" 
+(${1:type}*)malloc(${2:mult} * sizeof($1));
+$0
+endsnippet
+
+snippet d "[%d]" 
+[%${1:d}]$0
+endsnippet
+
+snippet chknarg "check number of argument" 
+//Check number of arguments
+if(argc <= ${1:number}){
+	printf("Illegal number of parameters\n");
+	exit(1);
+}
+${0}
+endsnippet
+
+snippet chkdig "check argument isdigit" 
+
+//Check argument is digit
+if(!isdigit(argv[${1:number}][0])){
+	printf("%d parameter is not digit\n",argv[$1]);
+	exit(1);
+}
+${0}
+endsnippet
+
+snippet mess "string for debugging" 
+printf("th[%d]-${1:message}\n",id${2});
+${0}
+endsnippet
+
+snippet vector "vector creation" 
+int i;
+int* vector;
+vector = (int *)malloc(${1:mult}*sizeof(int));
+for(i = 0; i < $1; ++i)
+{
+	vector[i] = rand() % range + 1;
+}
+printf("vector:\n");
+for (i = 0; i < $1; ++i)
+{
+	if (i%10==0 && i!=0)
+	{
+		printf("\n");
+	}
+	printf("[%d]\t",vector[i]);
+}
+printf("\n");
+endsnippet
+
+snippet oldskltn "proj skeleton" 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+void wait_child();
+
+int main(int argc, char *argv[])
+{
+	int i;
+	int n_children;
+	int father_pid;
+	int pid[MAX];
+
+	// Print all argument (debug purpose)
+	printf("Arguments:\n");
+	for (i = 0; i < argc; i++)
+		printf("[%d]:%s\n", i,argv[i]);
+
+	//Check number of arguments
+	if(argc < ${1:N+1}){
+		printf("Illegal number of parameters\n");
+		exit(1);
+	}
+	
+	//Check argument is digit
+	if(!isdigit(argv[${2:num}][0])){
+		printf("%d parameter is not digit\n",argv[$2][0]);
+		exit(1);
+	}
+
+	//Check argument is positive
+	if (argv[1][0] <= 0)
+	{
+		printf("%d must be >0\n",argv[$2][0]);
+		exit(1);
+	}
+	
+	${3:if par num children -> n_children}= atoi(argv[$2]);
+	${4:n_children =}
+	printf("n_children = %d\n", n_children);
+	printf("----- start program -----\n");
+	father_pid = getpid();
+	
+	for (i = 0; i < n_children; ++i)
+	{
+		//printf("about to create child [%d]\n", i);
+		pid[i] = fork();
+		if (pid[i] == 0)	//child
+		{
+			printf("child:pid - [%d][%d]\n",i,getpid());
+			${0:child_code}
+		}
+		else if (pid[i] > 0)//father
+		{}
+		else //Errors
+		{
+			perror("Unable to fork()");
+			exit(2);
+		}
+	}
+
+	//father code
+	for (i = 0; i < n_children; ++i)
+	{
+		wait_child();
+	}
+	return 0;
+}
+
+void wait_child() {
+	int status,pid;
+	pid = wait(&status);
+	if ( WIFEXITED(status) ) {
+		printf("Figlio %d terminato volontariamente con stato di terminazione %d\n",pid, WEXITSTATUS(status));
+	}
+	else if ( pid < 0)                                                                      
+	{                                                                                       
+		perror("Impossibile completare la wait");                                     
+	}     
+	else if ( WIFSIGNALED(status) )
+	{
+		printf("Figlio %d terminato dal segnale num. %d\n",pid, WTERMSIG(status));
+	}
+}
+endsnippet
+

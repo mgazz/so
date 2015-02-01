@@ -1,0 +1,60 @@
+snippet chan "create channel" b
+var ${1:name} = make(chan ${2:type} ${3:,buf_size})
+$0
+endsnippet
+
+snippet send "send in chan" b
+${1:chan} <-${2:value}
+endsnippet
+
+snippet get "receive from chan" b
+${1:dest_var} <-${2:chan}
+endsnippet
+
+#snippet ch
+#ch
+#endsnippet
+
+snippet gof "go func" b
+go func() {
+	$0
+}()
+endsnippet
+
+snippet slp "time.Sleep" 
+time.Sleep(${1:sec}*time.Second)
+$0
+endsnippet
+
+#snippet forep "fori" 
+#for ${1:i} = 0; $1 < ${2:N}; $1++ {
+	#$0
+#}
+#endsnippet
+
+snippet rfor "fori" 
+for ${1:i} := ${2:N}-1; $1>=0 ; $1-- {
+	$0
+}
+endsnippet
+
+snippet sc "fmt.Scanf" 
+fmt.Scanf("${1:%d}/n",&${2:var})
+$0
+endsnippet
+
+snippet mkch "make" 
+make(chan ${1:type} , ${2:size})
+endsnippet
+
+snippet range "for range" b
+for i :=  range ${2:libera} {
+	$0
+}
+endsnippet
+snippet start " start comment" b
+fmt.Printf("+++++++		$0		+++++++\n")
+endsnippet
+snippet stop "stop comment" b
+fmt.Printf("+++++++++++++++++++++++\n")
+endsnippet

@@ -1,6 +1,6 @@
 #!/bin/bash
 cp ~/.vimrc ./vimrc
-cp ~/.vim/UltiSnips/c.snippets .
+cp ~/.vim/UltiSnips .
 git add --all
 git commit -m "com"
 git push

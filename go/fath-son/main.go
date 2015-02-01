@@ -29,11 +29,17 @@ func partenza(ch chan<-int, sync1 <-chan bool, sync2 chan <- bool) {
 
 // mod estraz dal canale
 func arrivo(ch <-chan int) {
-	// cicla fino a chiusura canale
-	for v := range ch{
-		fmt.Println("ricevuto: ", v) //ricevi stampa
+
+	for i := 0; ; i++ {
+		v,ok := <-ch
+		if ok {
+			fmt.Println("ricevuto: ", v) //ricevi stampa
+		} else {
+			fmt.Println("canale chiuso do partenza")
+			break;
+		}
 	}
-	fmt.Println("canale chiuso do partenza")
+
 }
 
 func createChan() chan int{
