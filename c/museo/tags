@@ -1,0 +1,30 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+MAX	main.c	8;"	d	file:
+NDEV	main.c	9;"	d	file:
+NDEV	museo.h	8;"	d
+NVIS	museo.h	7;"	d
+dev_disp	museo.h	/^	pthread_mutex_cond dev_disp;$/;"	m	struct:museo
+exe	main.c	/^bool exe = true;$/;"	v
+in_bigl	museo.h	/^	sem_t in_bigl;  $/;"	m	struct:museo
+in_consegna_dev	museo.h	/^	sem_t in_consegna_dev;$/;"	m	struct:museo
+init	museo.h	/^void init(museo* m)$/;"	f
+m	main.c	/^museo m;$/;"	v
+m	main.c	/^pthread_mutex_t m;$/;"	v
+main	main.c	/^int main(int argc, char *argv[])$/;"	f
+museo	museo.h	/^typedef struct museo$/;"	s
+mut	museo.h	/^	pthread_mutex_t mut;$/;"	m	struct:museo
+n_dev_disp	museo.h	/^	int n_dev_disp;;$/;"	m	struct:museo
+n_vis_coda	museo.h	/^	int n_vis_coda;$/;"	m	struct:museo
+out_bigl	museo.h	/^	sem_t out_bigl;  $/;"	m	struct:museo
+out_consegna_dev	museo.h	/^	sem_t out_consegna_dev; \/\/necessario?$/;"	m	struct:museo
+s	main.c	/^static sem_t s; \/\/porta fuori$/;"	v	file:
+servito	museo.h	/^	sem_t servito;  $/;"	m	struct:museo
+start_vis	museo.h	/^	sem_t start_vis;$/;"	m	struct:museo
+th_museo	main.c	/^void th_museo(void* arg)$/;"	f
+visitando	museo.h	/^	bool visitando; \/\/ dice se stanno visitando o no$/;"	m	struct:museo
+visitatore	main.c	/^void visitatore(void* arg)$/;"	f
