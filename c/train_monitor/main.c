@@ -34,6 +34,7 @@ monitor m;
 void visitore(void* arg)
 {
 	int id = (int)arg;
+
 	printf("visitatore [%d] partito \n",id);
 
 	//passo per la biglietteria
