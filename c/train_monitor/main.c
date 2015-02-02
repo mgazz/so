@@ -2,27 +2,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <semaphore.h>
 
-#define N 10
-#define NDEV 10
-#define NGRUPPO 10
-#define MAX 20
+#define N 5
 
-typedef struct monitor
+typedef struct 
 {
-	int id_utenti_in_coda_biglietteri[N];
-	int n_utenti_in_coda_biglietteria;
-	int n_device_disponibili;
-	int n_utenti_in_gruppo;
-
-	bool v_a;
-	bool b_l;
-
-	pthread_cond_t visitatore_arrivato; 
-	pthread_cond_t biglietteria_libera; 
-
-	pthread_mutex_t mut_biglietteria;
-};
+	pthread_cond_t in_fila_per_il_contatore; 
+	pthread_cond_t aspetta_il_via; 
+	pthread_cond_t aspetta_contatore_uguale_a_cinque; 
+	pthread_mutex_t mut;
+	int contatore;
+	int utenti_partiti
+}monitor;
 
 /*static sem_t visitatore_arrivato; //globale*/
 /*static sem_t biglietteri_libera; //globale*/
@@ -31,99 +23,165 @@ typedef struct monitor
 
 monitor m; 
 
-void visitore(void* arg)
+static sem_t condizione1;
+static sem_t condizione2;
+pthread_mutex_t sem_mutex;
+
+int contatore;
+int exe=1;
+int utenti_partiti;
+
+//ipotesi: dovrei avere problemi sul valore del contatore
+
+void init()
+{
+	printf("-----init\n");
+	pthread_mutex_init(&m.mut,NULL);
+	pthread_cond_init(&m.in_fila_per_il_contatore,NULL);
+	pthread_cond_init(&m.aspetta_il_via,NULL);
+	pthread_cond_init(&m.aspetta_contatore_uguale_a_cinque,NULL);
+	m.contatore=0;
+	printf("m.contatore = %d\n",m.contatore);
+	m.utenti_partiti=0;
+	printf("m.utenti_partiti= %d\n",m.utenti_partiti);
+}
+/*void* user(void* arg)*/
+/*{*/
+	/*int id = (int)arg;*/
+	/*printf("user [%d] start\n",id);*/
+	/*printf("user [%d] aumenta contatore [%d]\n",id,++contatore);*/
+	/*sem_wait (&condizione1);*/
+	/*printf("[%d] passato\n",id);*/
+	/*for (int i = 0; 1; ++i)*/
+	/*{*/
+		/*printf("[%d] faccio semwait\n",id);*/
+		/*sem_wait (&condizione1);*/
+		/*printf("passato %d volte\n",i+1);*/
+	/*}*/
+	/*pthread_exit(id);*/
+	
+/*}*/
+/*void* barrier(void* arg)*/
+/*{*/
+	/*printf("barriera creata\n");*/
+	/*while(exe) {*/
+		/*printf("check_contatore\n");*/
+		/*if (contatore==5)*/
+		/*{*/
+			/*printf("contatore==5\n");*/
+			/*contatore=0;*/
+			/*for (int i = 0; i < 5; ++i)*/
+			/*{*/
+				/*sem_post (&condizione1);*/
+			/*}*/
+			/*if (contatore==N)*/
+			/*{*/
+				/*exe=0;*/
+			/*}*/
+		/*}*/
+	/*}*/
+	/*pthread_exit(NULL);*/
+/*}*/
+
+void user_monitor(void* arg)
 {
 	int id = (int)arg;
-
-	printf("visitatore [%d] partito \n",id);
-
-	//passo per la biglietteria
-	pthread_mutex_lock(&m.mut_biglietteria);
-	while(b_l==false) {
-		printf("visitatore [%d] aspetta che la biglietteria si liberi\n");
-		&m.n_utenti_in_coda_biglietteria++;
-		pthread_cond_wait(&m.biglietteri_libera,&m.mut);
+	pthread_mutex_lock(&m.mut);
+	printf("user [%d] start\n",id);
+	printf("user [%d] preso il lock\n",id);
+	while(m.contatore==5) {
+		pthread_cond_wait(&m.in_fila_per_il_contatore,&m.mut);
 	}
-	printf("visitatore [%d] servito dalla biglietteria\n");
-	b_l=false;
-	&m.n_utenti_in_coda_biglietteria--;
-	pthread_mutex_unlock(&m.mut_biglietteria);
-	printf("visitatore [%d] esce dalla biglietteria\n");
+	m.contatore++;
+	printf("user [%d] incrementato il contatore [%d]\n",m.contatore);
+	if (m.contatore ==5)
+	{
+		printf("segnalo che il contatore uguale a 5\n");
+		pthread_cond_signal(&m.aspetta_contatore_uguale_a_cinque)
+	}
+	printf("user [%d] aspetta il via dalla barriera\n");
+	pthread_cond_wait(&m.aspetta_il_via,&m.mut);
+	printf("user [%d] ricevuto via dalla barriera\n");
+
+	pthread_mutex_lock(&m.mut);
+	printf("user [%d] rilasciato il lock\n",id);
 	
+	pthread_exit(id);
 }
 
-void biglietteria()
+void* barriera_monitor()
 {
-	printf("biglietteria partito \n",id);
+	printf("barriera creata\n");
+	pthread_mutex_lock(&m.mut);
+	printf("barriera ha preso il lock\n");
 	while(exe) {
-		//se non disponibili dispositivi o gruppo pieno aspetto
-		pthread_mutex_lock(&m->mut_biglietteria);
-		&m.b_l=true;
-		pthread_mutex_unlock(&m->mut_biglietteria);
-		while(&m.n_dev==0 || 
-					&m.n_utenti_in_gruppo==NGRUPPO) {
-			pthread_cond_wait(&m.libera_inserimento_in_gruppo);
-			
+		while(
+				m.contatore!=5
+				) {
+			printf("barriera aspetto contatore\n");
+			pthread_cond_wait(&m.aspetta_contatore_uguale_a_cinque,&m.mut);
 		}
+			
+		printf("contatore == 5 -> mando broadcast a utenti in fila\n");
+		pthread_cond_broadcast(&m.aspetta_il_via);
+		printf("barriera azzera il contatore\n");
+		m.contatore=0;
 	}
-	pthread_mutex_unlock(&m->mut);
+	
+	printf("barriera rilascia il lock\n");
+	pthread_mutex_unlock(&m.mut);
 }
 
-void init(monitor* m)
-{
-	printf("----- inizializzazione monitor ------\n");
-	m->n_utenti_in_coda_device=0;
-	m->n_utenti_in_coda_biglietteria=0;
-	//la biglietteria sceglie quando aprire
-	m->b_l=false;
-
-	//inizializzazione del mutex
-	pthread_mutex_init(&m->mut_biglietteria,NULL);
-
-	//inizializzazione della condizione
-	pthread_cond_init(&m->mut_biglietteria,NULL);
-
-	printf("---------------------------------------\n");
-}
 
 int main(int argc, char *argv[])
 {
-	int i;
+	pthread_t th[N];
 	int retval[N];
+	pthread_t bar;
+	//inizializzazione mod monitor
 
-	pthread_t th_utenti[N];
-	pthread_t th_biglietteria;
-	
-	//creo il thread della biglietteria
-	pthread_create(th_biglietteria,NULL,biglietteria,NULL);
-	// creo gli utenti
-	pthread_create(&t_utenti[i],NULL,visita,(void *)i);
+	//inizializzazione mod semafori
+	contatore=0;
+	init();
+	printf("creazione barriera_monitor\n");
+	pthread_create(&bar,NULL,barriera_monitor, (void *)1);
 
-	for (i = 0; i < N; ++i)
+	printf("creazione users\n");
+	for (int i = 0; i < N; ++i)
 	{
-		if(pthread_create(&t_utenti[i],NULL,visita,(void *)i)<0)
-		{
-			fprintf(stderr, "thread [%d] creazione: error%d\n",i);
-			exit(1);
-		}
+		pthread_create(&th[i],NULL,user_monitor, (void *)i);
 	}
 
-	
-	for (i = 0; i < N; ++i)
+	for (int i = 0; i < N; ++i)
 	{
-		if(pthread_join(utenti[i],(void *)&retval[i])){
-			fprintf(stderr, "thread [%d] join: error \n",i);
-			exit(1);
-		}
-		else {
-			printf("pthread [%d] termiato con successo, retval=[%d]\n", i,retval[i]);
-		}
+		pthread_join(th[i],&retval[i]);
+		printf("terminato son [%d]\n",retval[i]);
+		
 	}
+	pthread_join(bar,NULL);
 
-	pthread_join(th_museo,NULL);
+	//========== metodo errato
+	/*sem_init(&condizione1,0,0);*/
+
+	/*pthread_create(&bar,NULL,barrier, (void *)1);*/
+	
+	/*//creo il thread */
+	/*printf("creazione users\n");*/
+	/*for (int i = 0; i < N; ++i)*/
+	/*{*/
+		/*pthread_create(&th[N],NULL,user, (void *)i);*/
+	/*}*/
+
+	//aspetto i thread
+	for (int i = 0; i < N; ++i)
+	{
+		pthread_join(th[i],&retval[i]);
+		printf("terminato son [%d]\n",retval[i]);
+		
+	}
+	pthread_join(bar,NULL);
+
 	printf("main fine\n");
-	
-	
 	
 	return 0;
 }
