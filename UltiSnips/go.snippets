@@ -1,15 +1,188 @@
+snippet slp "time.Sleep" 
+time.Sleep(time.Duration(rand.Intn(${1:sec})) * time.Second)
+$0
+endsnippet
+
+snippet cond "case for server:" b
+case x:= <-when(true,req_${1:client}):
+	fmt.Printf("$1 %d entrato \n",x )
+	n${2:var}++
+	ack_$1[x] <- true
+
+case x:= <-when(true,uscita_$1):
+	fmt.Printf("$1 %d uscito \n",x )
+	n$2--
+	ack_$1[x] <- true
+endsnippet
+
+snippet condio "case for server: in/out" b
+case x:= <-when(true,req_${1:client}):
+	fmt.Printf("$1 %d entrato \n",x )
+	n${2:var}++
+	ack_$1[x] <- true
+
+case x:= <-when(true,uscita_$1):
+	fmt.Printf("$1 %d uscito \n",x )
+	n$2--
+	ack_$1[x] <- true
+endsnippet
+snippet type "client divesi?" b
+var tipo_${1:client} int
+tipo_$1 = rand.Intn(${2:ntipi})
+fmt.Printf("client %d | tipo: %d\n", id,tipo_$1)
+if tipo_$1==0{ //tipo 1 : copia se + di due tipi
+	$0
+} 
+if tipo_$1==$2-1{//tipo $2
+
+}
+endsnippet
+
+snippet req "make request" b
+req_${1:client}<-id
+<-ack_$1[id]
+endsnippet
+
+snippet somain "let's do some shit !!!!!!" b
+
+//canali
+var done = make(chan bool)
+var termina = make(chan bool)
+var ack_$3[MAXPROC] chan bool 
+var req_$3= make(chan int,MAXBUFF)//dif req per $3->cambia nome e copia
+
+func $3(id int) {
+	fmt.Printf("$3 %d | avviato\n", id)
+
+	done <- true
+	fmt.Printf("$3 %d | esce dal sistema\n", id)
+}
+
+func $2() {
+	fmt.Printf("$2 # | avviato\n")
+	for  {
+		select {
+			
+		case <-termina: //terminazione server
+			fmt.Printf("$2 # | termina\n")
+			done <- true
+			return
+		}
+	}
+}
+
+func main() {
+
+	var n${1:client} int //numero di client
+
+	fmt.Printf("inserisci n$1 (max %d)? ", MAXPROC)
+	fmt.Scanf("%d", &n$1)
+
+	for i := 0; i < n$1; i++ { //canali ack per $3
+		ack_$3[i]= make(chan bool,MAXBUFF) 
+	}
+	go ${2:server}()
+
+	for i := 0; i < n$1; i++ {
+		go ${3:cliente}(i)
+	}
+
+	//aspetta client
+	for i := 0; i < n$1; i++ {
+		<-done
+	}
+	//aspetta server
+	termina <- true
+	<-done
+	fmt.Printf("FINE\n")
+}
+
+endsnippet
+
+snippet newcl "new client" b
+
+//inserisci in main
+	var n${1:clinet} int //numero di client
+
+	fmt.Printf("inserisci n$1 (max %d)? ", MAXPROC)
+	fmt.Scanf("%d", &n$1)
+
+
+	for i := 0; i < n$1; i++ { //canali ack per $2
+		ack_$2[i]= make(chan bool,MAXBUFF) 
+	}
+	for i := 0; i < n$1; i++ { //start $2
+		go ${2:cliente}(i)
+	}
+	for i := 0; i < n$1; i++ { //aspetto $2
+		<-done
+	}
+//
+
+var ack_$2[MAXPROC] chan bool 
+var req_$2= make(chan int,MAXBUFF) //cambia nome e copia se diverse req per $2
+func $2(id int) {
+	fmt.Printf("$2 %d | avviato\n", id)
+
+	done <- true
+	fmt.Printf("$2 %d | esce dal sistema\n", id)
+}
+
+endsnippet
+
+snippet newclround "client wait altri client" b
+
+//inserisci in main
+	var n${1:clinet} int //numero di client
+
+	fmt.Printf("inserisci n$1 (max %d)? ", MAXPROC)
+	fmt.Scanf("%d", &n$1)
+
+
+	for i := 0; i < n$1; i++ { //canali ack per $2
+		ack_$2[i]= make(chan bool,MAXBUFF) 
+	}
+	for i := 0; i < n$1; i++ { //start $2
+		go ${2:cliente}(i)
+	}
+	for i := 0; i < n$1; i++ { //metti prima terminazione server
+		termina_$2<- true
+		<-done
+	}
+//
+
+var termina_$2= make(chan bool)
+var ack_$2[MAXPROC] chan bool 
+var req_$2= make(chan int,MAXBUFF) //cambia nome e copia se diverse req per $2
+func $2(id int) {
+	fmt.Printf("$2 %d | avviato\n", id)
+
+	for  {
+		select {
+		case <-termina_$2: //terminaziona $2  
+			fmt.Printf("$2 %d | termina\n",id)
+			done <- true
+			return
+		default:
+
+		}
+	}
+}
+
+endsnippet
+
 snippet chan "create channel" b
 var ${1:name} = make(chan ${2:type} ${3:,buf_size})
 $0
 endsnippet
 
-snippet send "send in chan" b
-${1:chan} <-${2:value}
-endsnippet
+#snippet send "send in chan" b
+#${1:chan} <-${2:value}
+#endsnippet
 
-snippet get "receive from chan" b
-${1:dest_var} <-${2:chan}
-endsnippet
+#snippet get "receive from chan" b
+#${1:dest_var} <-${2:chan}
+#endsnippet
 
 #snippet ch
 #ch
@@ -21,10 +194,6 @@ go func() {
 }()
 endsnippet
 
-snippet slp "time.Sleep" 
-time.Sleep(${1:sec}*time.Second)
-$0
-endsnippet
 
 #snippet forep "fori" 
 #for ${1:i} = 0; $1 < ${2:N}; $1++ {
@@ -52,7 +221,7 @@ for i :=  range ${2:libera} {
 	$0
 }
 endsnippet
-snippet start " start comment" b
+snippet tcom " terminal comment" b
 fmt.Printf("+++++++		$0		+++++++\n")
 endsnippet
 snippet stop "stop comment" b

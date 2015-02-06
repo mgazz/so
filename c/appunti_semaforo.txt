@@ -1,0 +1,53 @@
+snippet:
+1.multip
+2.singp
+3.sroutine
+4.ml
+5.mul
+6.mnew
+7.sw
+8.sp
+9.srepcon
+10.slp
+
+nome semaforo? 
+	wait(del client): qual'è la condizione auspicata per procedere
+	post(del server): qual'è la situazione che si libera ora che sono stato sbloccato
+
+es: stazione(server) da cui deve passare l'utente(client)
+utente: 
+	auspico che stazione sia libera --> sem_wait(stazione_libera)
+	stazione liberata,sono stato servito, altro utente può arrivare --> sem_post(arrivo_utente)
+stazione: 
+ora che sono partito stazione è libera --> sem_post(stazione_libera)	
+ora che ho liberato la stazione aspetto un nuovo utente --> sem_wait(arrivo_utente)
+
+
+======================================================
+fai partire tutti i semafori a zero per semplicità
+il server parte con post e fa wait del client
+il client parte con wait e fa post per server quando finito (puo fare sleep in mezzo)
+usa srepcon per server che gira fino a che condizione non soddisfatta
+
+se hai riempimento di un contenitore: usa in repcon
+if(condizione_contenitore_pieno){
+	//avanza con post di th che aspettavano contenitore pieno
+	//usa una cond_wait per aspettare che che contenitore si svuoti o altro
+}
+else{
+	sem_post(prossimo_nel_contenitore)
+}
+NB: o contrario if(condizione_non_pieno){sem_post,sem_wait}
+
+mutex: usa solo se modificare valori condivisi tra thread
+wait e post sempre fuori a lock/unlock mutex
+NB: se cambiamento val condivisi(in lock/unlock) metti messaggio dentro lock/unlock
+
+NB: se devo aspettare condizione sul valore di una variabile sia soddifatto --> usa pthread_cond_wait
+
+esempio:
+pthread_mutex_lock(&mut);
+while(condizione_non_varificata) {
+	pthread_cond_wait( &cond_che_auspico_si_verifichi, &mut);
+}
+pthread_mutex_unlock(&mut);

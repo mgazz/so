@@ -32,7 +32,6 @@ func client(i int) {
 }
 
 func server() {
-
 	var disponibili int = MAXRES
 	var res, p, i int
 	var libera [MAXRES]bool

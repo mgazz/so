@@ -1,11 +1,24 @@
-// Package main provides ...
 package main
 
 import (
 	"fmt"
-	"time"
+	"math/rand"
+	//"time"
 )
-func main() {
-	fmt.Println("hello!");
+
+const (
+	MAXPROC= 10
+	MAXBUFF= 10
+)
+
+func when(b bool, c chan int) chan int {
+	if !b {
+		return nil
+	}
+	return c
 }
+//-------------------------------------
+
+//canali
+
 
