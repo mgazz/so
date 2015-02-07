@@ -4,29 +4,26 @@ $0
 endsnippet
 
 snippet cond "case for server:" b
-case x:= <-when(true,req_${1:client}):
-	fmt.Printf("$1 %d entrato \n",x )
-	n${2:var}++
-	ack_$1[x] <- true
+case x:= <-when(true,req_${1:client}_${2:action}):
+	//fmt.Printf("$1 %d entrato \n",x )
+	n${3:var}++
+	ack_[x] <- 1
 
-case x:= <-when(true,uscita_$1):
-	fmt.Printf("$1 %d uscito \n",x )
-	n$2--
-	ack_$1[x] <- true
 endsnippet
 
-snippet condio "case for server: in/out" b
-case x:= <-when(true,req_${1:client}):
-	fmt.Printf("$1 %d entrato \n",x )
-	n${2:var}++
-	ack_$1[x] <- true
+#snippet condio "case for server: in/out" b
+#case x:= <-when(true,req_${1:client}):
+	#fmt.Printf("$1 %d entrato \n",x )
+	#n${2:var}++
+	#ack_$1[x] <- 1
 
-case x:= <-when(true,uscita_$1):
-	fmt.Printf("$1 %d uscito \n",x )
-	n$2--
-	ack_$1[x] <- true
-endsnippet
-snippet type "client divesi?" b
+#case x:= <-when(true,uscita_$1):
+	#fmt.Printf("$1 %d uscito \n",x )
+	#n$2--
+	#ack_$1[x] <- 1
+#endsnippet
+
+snippet tipo "client divesi?" b
 var tipo_${1:client} int
 tipo_$1 = rand.Intn(${2:ntipi})
 fmt.Printf("client %d | tipo: %d\n", id,tipo_$1)
@@ -42,14 +39,17 @@ snippet req "make request" b
 req_${1:client}<-id
 <-ack_$1[id]
 endsnippet
+snippet sval "server variable" b
+var ${1:name} int=0
+fmt.Printf("$1: %d\t",$1)
+endsnippet
 
 snippet somain "let's do some shit !!!!!!" b
 
-//canali
 var done = make(chan bool)
-var termina = make(chan bool)
-var ack_$3[MAXPROC] chan bool 
-var req_$3= make(chan int,MAXBUFF)//dif req per $3->cambia nome e copia
+var termina_$2 = make(chan bool)
+var ack_$3[MAXPROC] chan int
+var req_$3= make(chan int,MAXBUFF)
 
 func $3(id int) {
 	fmt.Printf("$3 %d | avviato\n", id)
@@ -61,16 +61,20 @@ func $3(id int) {
 func $2() {
 	fmt.Printf("$2 # | avviato\n")
 	for  {
+		//linea di stampa stato
+		fmt.Printf("$2 # |\t") 
+
+		fmt.Printf("\n")
 		select {
 			
-		case <-termina: //terminazione server
+		case <-termina_$2: //terminazione server
 			fmt.Printf("$2 # | termina\n")
 			done <- true
 			return
 		}
 	}
 }
-
+$0
 func main() {
 
 	var n${1:client} int //numero di client
@@ -79,7 +83,7 @@ func main() {
 	fmt.Scanf("%d", &n$1)
 
 	for i := 0; i < n$1; i++ { //canali ack per $3
-		ack_$3[i]= make(chan bool,MAXBUFF) 
+		ack_$3[i]= make(chan int,MAXBUFF) 
 	}
 	go ${2:server}()
 
@@ -91,15 +95,44 @@ func main() {
 	for i := 0; i < n$1; i++ {
 		<-done
 	}
+
 	//aspetta server
-	termina <- true
+	termina_$2 <- true
 	<-done
 	fmt.Printf("FINE\n")
 }
 
 endsnippet
+snippet snew "new server" b
 
-snippet newcl "new client" b
+//inserisci in main
+	go ${1:cliente}()
+	
+	termina_$1<- true //terminazione $1
+	<-done
+
+var termina_$1= make(chan bool)
+var req_$1_${2:action}= make(chan int,MAXBUFF) 
+var ack_$1= make(chan int) 
+
+func $1() {
+	fmt.Printf("$1 @ | avviato\n")
+
+	for  {
+		select {
+		case <-termina_$1: //terminaziona $1  
+			fmt.Printf("$1 @ | termina\n")
+			done <- true
+			return
+		default:
+
+		}
+	}
+}
+
+endsnippet
+
+snippet cnew "new clients" b
 
 //inserisci in main
 	var n${1:clinet} int //numero di client
@@ -109,7 +142,7 @@ snippet newcl "new client" b
 
 
 	for i := 0; i < n$1; i++ { //canali ack per $2
-		ack_$2[i]= make(chan bool,MAXBUFF) 
+		ack_$2[i]= make(chan int,MAXBUFF) 
 	}
 	for i := 0; i < n$1; i++ { //start $2
 		go ${2:cliente}(i)
@@ -119,8 +152,8 @@ snippet newcl "new client" b
 	}
 //
 
-var ack_$2[MAXPROC] chan bool 
-var req_$2= make(chan int,MAXBUFF) //cambia nome e copia se diverse req per $2
+var ack_$2[MAXPROC] chan int
+var req_$2= make(chan int,MAXBUFF) 
 func $2(id int) {
 	fmt.Printf("$2 %d | avviato\n", id)
 
@@ -140,7 +173,7 @@ snippet newclround "client wait altri client" b
 
 
 	for i := 0; i < n$1; i++ { //canali ack per $2
-		ack_$2[i]= make(chan bool,MAXBUFF) 
+		ack_$2[i]= make(chan int,MAXBUFF) 
 	}
 	for i := 0; i < n$1; i++ { //start $2
 		go ${2:cliente}(i)
@@ -152,8 +185,8 @@ snippet newclround "client wait altri client" b
 //
 
 var termina_$2= make(chan bool)
-var ack_$2[MAXPROC] chan bool 
-var req_$2= make(chan int,MAXBUFF) //cambia nome e copia se diverse req per $2
+var ack_$2[MAXPROC] chan int 
+var req_$2= make(chan int,MAXBUFF) 
 func $2(id int) {
 	fmt.Printf("$2 %d | avviato\n", id)
 

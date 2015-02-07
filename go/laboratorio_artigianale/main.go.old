@@ -1,0 +1,183 @@
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+const (
+	MAXPROC= 10
+	MAXBUFF= 10
+	MAX = 4
+	N=2
+)
+
+type Prenotazione struct {
+	id int
+	qta int
+	ticket int
+}
+
+func when(b bool, c chan int) chan int {
+	if !b {
+		return nil
+	}
+	return c
+}
+//-------------------------------------
+
+var nsfogline int //numero di client
+
+//canali
+var done = make(chan bool)
+var termina = make(chan bool)
+var ack_cliente[MAXPROC] chan int
+var req_cliente_prenotazione= make(chan Prenotazione,MAXBUFF)
+var req_cliente_ritiro= make(chan int,MAXBUFF)
+
+var termina_sfoglina= make(chan bool)
+var ack_sfoglina[MAXPROC] chan int 
+var req_sfoglina[MAXPROC] chan int
+var req_sfoglina_deposito= make(chan int)
+
+
+func sfoglina(id int) {
+	fmt.Printf("sfoglina %d | avviato\n", id)
+
+	for  {
+		select {
+		case <-termina_sfoglina: //terminaziona sfoglina  
+			fmt.Printf("sfoglina %d | termina\n",id)
+			done <- true
+			return
+
+		case <-req_sfoglina[id]:
+			fmt.Printf("sfoglina %d | ricevuto ordine creazione sfogina\n", id)
+			time.Sleep(time.Duration(3) * time.Second)
+			fmt.Printf("sfoglina %d | richiedo di depositare la confezione\n", id)
+			req_sfoglina_deposito <- id
+			<-ack_sfoglina[id]
+			fmt.Printf("sfoglina %d | depositato confezione\n", id)
+
+		}
+	}
+}
+
+func cliente(id int) {
+	fmt.Printf("cliente %d | avviato\n", id)
+	var pr Prenotazione
+	var riconsegnati int
+	pr.id=id
+	pr.qta=rand.Intn(2 * MAX)
+	req_cliente_prenotazione<-pr
+	ticket:=<-ack_cliente[id]
+	fmt.Printf("cliente %d | ticket: %d\n", id,ticket)
+	pr.ticket=ticket
+	//ritiro ==> passa Prenotazione con ticket
+	for riconsegnati!=pr.qta {
+		req_cliente_ritiro<-id
+		x:=<-ack_cliente[id]
+		riconsegnati+=x
+	}
+
+	fmt.Printf("cliente %d | ritirata la prenotazione: %d\n", id)
+
+	done <- true
+	fmt.Printf("cliente %d | esce dal sistema\n", id)
+}
+
+func gestore() {
+	var contatore_prenotazioni int =4
+	var contatore_round_sfogline int=0
+	var disp_frigorifero int = N
+	var prenotazioni map[int]*Prenotazione
+	fmt.Printf("gestore # | avviato\n")
+	for  {
+		select {
+		case x := <-req_cliente_prenotazione:
+			if x.qta < MAX{
+				contatore_prenotazioni++
+				x.ticket=contatore_prenotazioni
+				prenotazioni[x.id].qta-=x.qta
+				ack_cliente[x.id] <-x.ticket 
+			} else {
+				ack_cliente[x.id] <- -1
+			}
+
+			//ciclo le sfogline
+			for i := 0; i < x.qta; i++ {
+				req_sfoglina[contatore_round_sfogline]<-1
+				contatore_round_sfogline++
+				contatore_round_sfogline=rand.Intn(nsfogline)
+			}
+
+		case x := <-req_sfoglina_deposito:
+			ack_sfoglina[x]<-1
+
+		case x:=<-req_cliente_ritiro:
+			if prenotazioni[x].qta > disp_frigorifero { //prenotazione effettuata dal cliente
+				prenotazioni[x].qta -= disp_frigorifero //diminuisco i rimanenti
+				ack_cliente[x] <-disp_frigorifero //se ne ha chiesto + della cap deve tornare
+				disp_frigorifero=0 //azzero frigo in quanto vuoto
+			} else {
+				disp_frigorifero-=prenotazioni[x].qta
+				ack_cliente[x]<-prenotazioni[x].qta
+				fmt.Printf("gestore # | terminata la prenotazione di %d\n",x)
+				delete(prenotazioni,x) //rimuovo la prenotazione terminata
+			}
+
+			
+		case <-termina: //terminazione server
+			fmt.Printf("gestore # | termina\n")
+			done <- true
+			return
+		}
+	}
+}
+
+func main() {
+
+	var nclienti int //numero di client
+
+	fmt.Printf("inserisci nclienti (max %d)? ", MAXPROC)
+	fmt.Scanf("%d", &nclienti)
+
+
+	fmt.Printf("inserisci nsfogline (max %d)? ", MAXPROC)
+	fmt.Scanf("%d", &nsfogline)
+
+
+	for i := 0; i < nsfogline; i++ { //canali ack per sfoglina
+		ack_sfoglina[i]= make(chan int) 
+		req_sfoglina[i]= make(chan int,MAXPROC) 
+	}
+	for i := 0; i < nsfogline; i++ { //start sfoglina
+		go sfoglina(i)
+	}
+	for i := 0; i < nclienti; i++ { //canali ack per cliente
+		ack_cliente[i]= make(chan int) 
+	}
+	go gestore()
+
+	for i := 0; i < nclienti; i++ {
+		go cliente(i)
+	}
+
+	//aspetta client
+	for i := 0; i < nclienti; i++ {
+		<-done
+	}
+
+	for i := 0; i < nsfogline; i++ { //metti prima terminazione server
+		termina_sfoglina<- true
+		<-done
+	}
+	//aspetta server
+	termina <- true
+	<-done
+
+
+	fmt.Printf("FINE\n")
+}
+

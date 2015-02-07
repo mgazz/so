@@ -1,0 +1,237 @@
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+const (
+	MAXBUFF= 10
+	TI=4
+	TS=5
+	MAXPROC= TI+TS-1
+	PS=0 //ponte superiore
+	PI=1 //ponte inferiore
+	I=0 //input
+	O=1 //output
+)
+
+func when(b bool, c chan int) chan int {
+	if !b {
+		return nil
+	}
+	return c
+}
+//-------------------------------------
+
+
+
+
+
+//canali
+var done = make(chan bool)
+var termina_scala = make(chan bool)
+var ack_viaggiatore[MAXPROC] chan int
+var req_viaggiatore[2][2] chan int
+var req_membro[2][2] chan int
+
+var termina_membro= make(chan bool)
+var termina_viaggiatore= make(chan bool)
+var ack_membro[MAXPROC] chan int 
+
+func membro(id int) {
+	var start_position int= rand.Intn(2) //posizione di partenza
+	fmt.Printf("membro %d | avviato, start_position:%d\n", id,start_position)
+
+	for  {
+		select {
+		case <-termina_membro: //terminaziona membro  
+			fmt.Printf("membro %d | termina\n",id)
+			done <- true
+			return
+		default:
+			if start_position==PI {
+				req_membro[I][PI]<-id //voglio entrare passerella per dirigermi verso PI
+				fmt.Printf("membro %d | aspetto ack\n",id)
+				<-ack_membro[id]
+				fmt.Printf("membro %d | ricevuto ack\n",id)
+				time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+				req_membro[O][PI]<-id //voglio uscire dalla passerella per entrare in PI
+				<-ack_membro[id]
+				fmt.Printf("membro %d | ricevuto ack\n",id)
+				start_position=PS //ora che sono in PI vogli dirigermi verso PS
+				
+			} else if start_position==PS {
+				req_membro[I][PS]<-id
+				<-ack_membro[id]
+				fmt.Printf("membro %d | ricevuto ack\n",id)
+				time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+				req_membro[O][PS]<-id 
+				<-ack_membro[id]
+				fmt.Printf("membro %d | ricevuto ack\n",id)
+				start_position=PI 
+				
+			}
+
+		}
+	}
+}
+
+
+func viaggiatore(id int) {
+	var start_position int= rand.Intn(2) //posizione di partenza
+	fmt.Printf("viaggiatore %d | avviato, start_position:%d\n", id,start_position)
+	
+	for  {
+		select {
+		case <-termina_viaggiatore: 
+			fmt.Printf("viaggiatore %d | termina\n",id)
+			done <- true
+			return
+		default:
+			if start_position==PI {
+				req_viaggiatore[I][PI]<-id //voglio entrare passerella per dirigermi verso PI
+				<-ack_viaggiatore[id]
+				fmt.Printf("viaggiatore %d | ricevuto ack\n",id)
+				time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+				req_viaggiatore[O][PI]<-id //voglio uscire dalla passerella per entrare in PI
+				<-ack_viaggiatore[id]
+				fmt.Printf("viaggiatore %d | ricevuto ack\n",id)
+				start_position=PS //ora che sono in PI vogli dirigermi verso PS
+				
+			} else if start_position==PS {
+				req_viaggiatore[I][PS]<-id
+				<-ack_viaggiatore[id]
+				fmt.Printf("viaggiatore %d | ricevuto ack\n",id)
+				time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+				req_viaggiatore[O][PS]<-id 
+				<-ack_membro[id]
+				fmt.Printf("viaggiatore %d | ricevuto ack\n",id)
+				start_position=PI 
+				
+			}
+		}
+	}
+}
+
+func scala() {
+	fmt.Printf("scala # | avviato\n")
+	var nscala_verso_PI int=0
+	var nscala_verso_PS int=0
+	for  {
+		//linea di stampa stato
+		fmt.Printf("scala # |\t") 
+		fmt.Printf("nscala_verso_PI: %d\t",nscala_verso_PI)
+		fmt.Printf("nscala_verso_PS: %d\t",nscala_verso_PS)
+
+		fmt.Printf("\n")
+		select {
+		
+		case x:= <-when(true,req_membro[O][PI]):
+			fmt.Printf("membro[O][PI]_ %d entrato \n",x )
+			nscala_verso_PI--
+			ack_membro[x] <- 1
+
+		case x:= <-when(true,req_membro[I][PI]):
+			fmt.Printf("membro[I][PI]_ %d entrato \n",x )
+			nscala_verso_PI++
+			fmt.Printf("membro[I][PI]_ %d invio ack\n",x )
+			ack_membro[x] <- 1
+			
+		case x:= <-when(true,req_viaggiatore[I][PI]):
+			fmt.Printf("viaggiatore[I][PI]_ %d entrato \n",x )
+			nscala_verso_PI++
+			ack_viaggiatore[x] <- 1
+		
+		case x:= <-when(true,req_viaggiatore[O][PI]):
+			fmt.Printf("viaggiatore[O][PI]_ %d entrato \n",x )
+			nscala_verso_PI--
+			ack_viaggiatore[x] <- 1
+
+		case x:= <-when(true,req_membro[I][PS]):
+			fmt.Printf("membro[I][PS]_ %d entrato \n",x )
+			nscala_verso_PS++
+			ack_membro[x] <- 1
+		
+		case x:= <-when(true,req_membro[O][PS]):
+			fmt.Printf("membro[O][PS]_ %d entrato \n",x )
+			nscala_verso_PS--
+			ack_membro[x] <- 1
+			
+		case x:= <-when(true,req_viaggiatore[I][PS]):
+			fmt.Printf("viaggiatore[I][PS]_ %d entrato \n",x )
+			nscala_verso_PS++
+			ack_viaggiatore[x] <- 1
+		
+		case x:= <-when(true,req_viaggiatore[O][PS]):
+			fmt.Printf("viaggiatore[O][PS]_ %d entrato \n",x )
+			nscala_verso_PS--
+			ack_viaggiatore[x] <- 1
+
+		case <-termina_scala: //terminazione server
+			fmt.Printf("scala # | termina\n")
+			done <- true
+			return
+		}
+	}
+}
+
+func main() {
+
+	var nviaggiatori int //numero di client
+	var nmembri int //numero di client
+
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 2; j++ {
+			req_membro[i][j]= make(chan int, MAXBUFF)
+			req_viaggiatore[i][j]= make(chan int, MAXBUFF)
+		}
+	}
+
+	for i := 0; i < nmembri; i++ { //canali ack per membro
+		ack_membro[i]= make(chan int,MAXBUFF) 
+	}
+
+	for i := 0; i < nviaggiatori; i++ { //canali ack per viaggiatore
+		ack_viaggiatore[i]= make(chan int,MAXBUFF) 
+	}
+
+	fmt.Printf("inserisci nviaggiatori (max tot %d)? ", MAXPROC)
+	fmt.Scanf("%d", &nviaggiatori)
+
+
+	fmt.Printf("inserisci nmembri (max tot %d)? ", MAXPROC)
+	fmt.Scanf("%d", &nmembri)
+
+
+	go scala()
+
+	for i := 0; i < nmembri; i++ { //start membro
+		go membro(i)
+	}
+
+	for i := 0; i < nviaggiatori; i++ {
+		go viaggiatore(i)
+	}
+
+	time.Sleep(time.Duration(rand.Intn(60)) * time.Second)
+	
+
+	for i := 0; i < nviaggiatori; i++ { 
+		termina_viaggiatore<- true
+		<-done
+	}
+
+	for i := 0; i < nmembri; i++ { 
+		termina_membro<- true
+		<-done
+	}
+
+	//aspetta server
+	termina_scala <- true
+	<-done
+	fmt.Printf("FINE\n")
+}
+
+

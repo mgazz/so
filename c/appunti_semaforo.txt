@@ -1,15 +1,30 @@
-snippet:
-1.multip
-2.singp
-3.sroutine
-4.ml
-5.mul
-6.mnew
-7.sw
-8.sp
-9.srepcon
-10.slp
+snippets
+    cnew "pthread condition" b
+    cnew1 "pthread condition[]" b
+    cnew2 "pthread condition[][]" b
+    cnew3 "pthread cond[][][]" b
+    divbar "division bar" b
+    ioroutine "entra-esce routine (per monitor)" b
+    mbar "message bar" b
+    ml "lock mutex" b
+    mnew "new mutex" b
+    mon "new empty monitor" b
+    mul "unlock mutex" b
+    multip "create multiple thread"
+    mval "monitor variable" b
+    r "rand()"
+    singp "create single thread" b
+    slp "sleep random 5 sec" b
+    snew "new semaphore" b
+    sp "rispveglia th sospeso su sem"
+    srepcond "repeat while condition sem" b
+    sroutine "start process" b
+    sval "semaphore variable" b
+    sw "se sem 0 sospende th "
+    tipo "diverso tipo" b
+    ty "typedef" b
 
+SEMAFORI
 nome semaforo? 
 	wait(del client): qual'è la condizione auspicata per procedere
 	post(del server): qual'è la situazione che si libera ora che sono stato sbloccato
@@ -46,8 +61,25 @@ NB: se cambiamento val condivisi(in lock/unlock) metti messaggio dentro lock/unl
 NB: se devo aspettare condizione sul valore di una variabile sia soddifatto --> usa pthread_cond_wait
 
 esempio:
-pthread_mutex_lock(&mut);
+pthread_mutex_lock(&mut); //non sempre necessario
 while(condizione_non_varificata) {
 	pthread_cond_wait( &cond_che_auspico_si_verifichi, &mut);
 }
 pthread_mutex_unlock(&mut);
+
+
+======================================================
+
+MONITOR
+prima di implementare le condizioni controlla se presenti:
+- differenti tipi
+- condizioni di cardinalità diverse
+- quindi condizione: azione_auspicata[ntipo][ntipo][card] 
+
+Ogni condizione di attesa ha la sua coda
+Tante riattivazioni quante sono le condizioni di attesa
+In condizioni tieni tutti elseif e usa else per controllo errori
+Se non ho vincoli di rimanenza nel sistema--> outX aggiorna le variabili e signal ma non ciclo while
+Fai stampastato prima di risveglio signal e messaggio dopo risveglio del thread per verificare se il criterio usato è corretto
+
+NB: se usi struttura in ioroutine occhio ai messaggi: da id cambia s.id

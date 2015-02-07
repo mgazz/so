@@ -1,0 +1,146 @@
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+const (
+	MAXPROC= 10
+	MAXBUFF= 10
+	MAX = 2
+)
+
+func when(b bool, c chan int) chan int {
+	if !b {
+		return nil
+	}
+	return c
+}
+//-------------------------------------
+
+//canali
+
+
+//canali
+var done = make(chan bool)
+var termina_passerella = make(chan bool)
+var ack_viaggiatore[MAXPROC] chan int
+var req_viaggiatore_entrata= make(chan int,MAXBUFF)
+var req_viaggiatore_uscita= make(chan int,MAXBUFF)
+
+var termina_addetto= make(chan bool)
+var ack_addetto chan int 
+var req_addetto_inizio_pericolo= make(chan int,MAXBUFF) 
+var req_addetto_fine_pericolo= make(chan int,MAXBUFF) 
+
+
+func addetto( ) {
+	fmt.Printf("addetto @ | avviato\n")
+
+	for  {
+		select {
+		case <-termina_addetto: //terminaziona addetto  
+			fmt.Printf("addetto @ | termina\n")
+			done <- true
+			return
+		default:
+			time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+			req_addetto_inizio_pericolo<-1
+			<-ack_addetto
+			time.Sleep(time.Duration(rand.Intn(5)+3) * time.Second)
+			req_addetto_fine_pericolo<-1
+			<-ack_addetto
+		}
+	}
+}
+
+
+
+func viaggiatore(id int) {
+	time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+	
+	req_viaggiatore_entrata<-id
+	<-ack_viaggiatore[id]
+
+	fmt.Printf("viaggiatore %d | entrato sulla passerella\n", id)
+	req_viaggiatore_uscita<-id
+	<-ack_viaggiatore[id]
+
+	fmt.Printf("viaggiatore %d | uscito dalla passerella\n", id)
+	done <- true
+}
+
+func passerella() {
+	fmt.Printf("passerella # | avviato\n")
+	var npasseggeri_su_passerella int= 0
+	var pericolo int=0
+	for  {
+		//linea di status
+		fmt.Printf("passerella # |\t") 
+		fmt.Printf("npasseggeri:%d\t",npasseggeri_su_passerella)
+		fmt.Printf("pericolo:%d\t",pericolo)
+		fmt.Printf("\n")
+		select {
+		case <-when(true,req_addetto_inizio_pericolo): //sempre preso --> max prio
+			pericolo=1
+			ack_addetto <- 1
+
+		case <-when(true,req_addetto_fine_pericolo):
+			pericolo=0
+			ack_addetto <- 1
+
+		case x:= <-when(len(req_viaggiatore_uscita)==0 && npasseggeri_su_passerella < MAX && pericolo==0,req_viaggiatore_entrata):
+			npasseggeri_su_passerella++
+			ack_viaggiatore[x] <- 1
+	
+		case x:= <-when(true,req_viaggiatore_uscita):
+			npasseggeri_su_passerella--
+			ack_viaggiatore[x] <- 1
+			
+		case <-termina_passerella: //terminazione server
+			fmt.Printf("passerella # | termina\n")
+			done <- true
+			return
+		}
+	}
+}
+
+func main() {
+
+	var nviaggiatori int //numero di client
+
+	fmt.Printf("inserisci nviaggiatori (max %d)? ", MAXPROC)
+	fmt.Scanf("%d", &nviaggiatori)
+
+	ack_addetto=make(chan int,MAXBUFF) 
+
+	for i := 0; i < nviaggiatori; i++ { //canali ack per viaggiatore
+		ack_viaggiatore[i]= make(chan int,MAXBUFF) 
+	}
+
+	go passerella()
+
+	go addetto()
+
+	for i := 0; i < nviaggiatori; i++ {
+		go viaggiatore(i)
+	}
+
+	//aspetta client
+	for i := 0; i < nviaggiatori; i++ {
+		<-done
+	}
+
+	termina_addetto<- true
+	<-done
+
+	//aspetta server
+	termina_passerella <- true
+	<-done
+	fmt.Printf("FINE\n")
+}
+
+
+
