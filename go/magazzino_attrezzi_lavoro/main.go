@@ -1,210 +1,222 @@
-//negozianti: acq almeno K esemplari
-//privati: 1 articolo alla volta
-//NB: 1 solo tipo di prodotto
-//fornitori: periodicamente consegna 1 lotto di MAX esemplare di 1 solo articolo
-
-//3task: magazzino,clienti,fornitori
-//privilegiare negozianti risp privati
-
-//priorita fornitori: martelli,tenaglie,badili
-
-//var req_tenaglie= make(chan int ,MB)	//canale per le richieste dei fornitori
-//var req_badile= make(chan int ,MB)	//canale per le richieste dei fornitori
-
-// Package main provides ...
 package main
 
 import (
 	"fmt"
 	"math/rand"
-	"time"
+	//"time"
 )
 
 const (
-	MAX int = 2 //max esemplare in mag per mart,ten,badile
-	MAX_CLIENTI int = 1 
-	MAX_FORNITORI int = 1 
-	K int = 1
-	MB int = 1
+	MAXPROC= 10
+	MAXBUFF= 10
+	MAX = 2
 
-	//tipologie articolo
-	martello=0
-	tenaglia=1
-	badile=2
+	MR = 0 //martello
+	TN = 1 //tenaglia
+	BD = 2 //badile
+
+	NG = 0
+	PR = 1
 )
 
-type richiesta_negoziante struct {
-	id int
-	qta int
-	tipo_articolo int
-}
-
-type consegna_fornitore struct {
-	id int
-	qta int
-	tipo_articolo int
-}
-
-//due canali per cliente e negoziante, per ognuno martello,tenaglia,badile
-var req_negoziante[3] chan richiesta_negoziante//1 canale per ogni articolo
-var req_privato[3] chan int//1 canale per ogni articolo
-var res_cliente[MAX_CLIENTI] chan int	//canale di risposta all'attesa indipendentemente dal tipo
-
-var req_fornitore[3] chan consegna_fornitore	//1 canale per ogni articolo
-var res_fornitore[MAX_FORNITORI] chan int	//canale di risposta all'attesa indipendentemente dal tipo
-
-var done = make(chan bool )
-var termina = make(chan bool)
-
-func when(b bool, c chan int) {
+func when(b bool, c chan int) chan int {
 	if !b {
 		return nil
 	}
 	return c
 }
+//-------------------------------------
+var done = make(chan bool)
 
-func new_req_negoziante(id int) (richiesta_negoziante){
-	var rng richiesta_negoziante
-	rng.id=id
-	rng.qta=rand.Intn(3) + K
-	rng.tipo_articolo = rand.Intn(3)
-	return rng
-}
+var nclienti int //numero di client
+var nfornitori int //numero di client
 
-func new_cons_fornitore(id int)(consegna_fornitore) {
-	var cfn consegna_fornitore
-	cfn.id=id
-	cfn.qta=rand.Intn(MAX) 
-	cfn.tipo_articolo = rand.Intn(3)
-	return cfn
-}
+var req_cliente[2][3]chan int 
+var ack_cliente[MAXPROC] chan int
+var req_fornitore[3]chan int 
+var ack_fornitore[MAXPROC] chan int
+var termina_magazzino = make(chan bool)
 
-
-func cliente(id int) {
-	tipo_cliente = rand.Intn(2)
-	var rng richiesta_negoziante
-	if tipo_cliente==NEG {
-		rng = new_req_negoziante(id)
-		//fmt.Printf("negoziante %d| [%d][%d] faccio richiesta\n",id,rng.qta,rng.tipo_articolo)
-		req_negoziante<-rng
-	} else {
-		//fmt.Printf("privato %d| faccio richiesta \n", id)
-		req_privato <- id
-	}
-	<-res_cliente[id]
-
-	//fmt.Printf("cliente [%d] servito se ne va\n",id)
-	done<-true
-}
 
 func fornitore(id int) {
-	cfn:=new_cons_fornitore(id)
-	req_fornitore[cfn.tipo_articolo]<-cfn
-	<-res_fornitore
+	fmt.Printf("fornitore %d | avviato\n", id)
+	var esemplare int
+	esemplare = rand.Intn(3)
+	fmt.Printf("fornitore %d | esemplare: %d\n", id,esemplare)
+
+	req_fornitore[esemplare]<-id
+	<-ack_fornitore[id]
+
+	done <- true
+	fmt.Printf("fornitore %d | esce dal sistema\n", id)
+}
+
+func cliente(id int) {
+	fmt.Printf("cliente %d | avviato\n", id)
+
+	var esemplare int
+	esemplare = rand.Intn(3)
+	var tipo_cliente int
+	tipo_cliente= rand.Intn(2)
+
+	fmt.Printf("cliente %d | tipo: %d esemplare: %d\n", id,tipo_cliente,esemplare)
+
+	req_cliente[tipo_cliente][esemplare]<-id
+	<-ack_cliente[id]
+
+	done <- true
+	fmt.Printf("cliente %d | esce dal sistema\n", id)
+}
+
+func negozianti_vuoti() (bool){
+	for i := 0; i < 3; i++ {
+		if len(req_cliente[NG][i])>0 {
+			return false
+		}
+	}
+	return true
 }
 
 
 func magazzino() {
-	//for, select e poi sono cazzi tuoi!
-	var n_martelli,ntenaglie,n_badili int =0
+	fmt.Printf("magazzino # | avviato\n")
+	var esemplare[3] int
+	for i := 0; i < 3; i++ {
+		//esemplare[i]=MAX
+		esemplare[i]=MAX
+	}
+	
 	for  {
+		//linea di stampa stato
+		fmt.Printf("magazzino # |\t") 
+		for i := 0; i < 3; i++ {
+			fmt.Printf("esemplare[%d]: %d\t",i,esemplare[i])
+		}
+		fmt.Printf("\n")
 		select {
-		//arrivo richiesta privato martello
-		case x := <-when(n_martelli>0 && len(req_negoziante[0]==0) && len(req_negoziante[1]==0) && len(req_negoziante[2]==0),req_privato[martello]):
-			n_martelli--
-			<-res_cliente[x.id]
 
-		//arrivo richiesta privato tenaglie
-		case x := <-when(n_tenaglie>0 && len(req_negoziante[0]==0) && len(req_negoziante[1]==0) &&	len(req_negoziante[2]==0),req_privato[tenaglie]):
-			n_tenaglie--
-			<-res_cliente[x.id]
-
-		//arrivo richiesta privato badile
-		case x := <-when(n_badili>0 && len(req_negoziante[0]==0) && len(req_negoziante[1]==0) && len(req_negoziante[2]==0),req_privato[badile]):
-			n_badili--
-			<-res_cliente[x.id]
-
-		//arrivo richiesta negoziante per martello
-		case x := <-when(n_martelli>K+3,req_negoziante[martelli]):
-			n_martelli-= x.qta
-			<-res_cliente[x.id]
-
-		//arrivo richiesta negoziante per tenaglia
-		case x := <-when(n_tenaglie>=K+3 ,req_negoziante[tenaglia]):
-			n_tenaglie -= x.qta
-			<-res_cliente[x.id]
-
-		//arrivo richiesta negoziante per badile
-		case x := <-when(n_badili>=K+3 ,req_negoziante[badile]):
-			n_badili-= x.qta
-			<-res_cliente[x.id]
-
-		case x:= <-when(,req_fornitore[martello]):
-			<-res_fornitore[x.id]
-
-		case x:= <-when(1,req_fornitore[tenaglia]):
-			<-res_fornitore[x.id]
-
-		case x:= <-when(1,req_fornitore[badile]):
-			<-res_fornitore[x.id]
+		//negozianti
+		case x:= <-when(esemplare[BD]>0,req_cliente[NG][BD]): //negoziante badile
+			//fmt.Printf("cliente[][] %d entrato \n",x )
+			esemplare[BD]--
+			ack_cliente[x] <- 1
+		
+		case x:= <-when(esemplare[MR]>0,req_cliente[NG][MR]): //negoziante martello
+			//fmt.Printf("cliente[][] %d entrato \n",x )
+			esemplare[MR]--
+			ack_cliente[x] <- 1
 			
+		case x:= <-when(esemplare[TN]>0,req_cliente[NG][TN]):
+			//fmt.Printf("cliente[][] %d entrato \n",x )
+			esemplare[TN]--
+			ack_cliente[x] <- 1
 
-		case <-termina:
-			fmt.Println("FINE !!!!!!")
+		//privati
+		case x:= <-when(esemplare[BD]>0 && negozianti_vuoti()==true,req_cliente[PR][BD]): //negoziante badile
+			//fmt.Printf("cliente[][] %d entrato \n",x )
+			esemplare[BD]--
+			ack_cliente[x] <- 1
+		
+		case x:= <-when(esemplare[MR]>0 && negozianti_vuoti()==true,req_cliente[PR][MR]): //negoziante martello
+			//fmt.Printf("cliente[][] %d entrato \n",x )
+			esemplare[MR]--
+			ack_cliente[x] <- 1
+			
+		case x:= <-when(esemplare[TN]>0 && negozianti_vuoti()==true,req_cliente[PR][TN]):
+			//fmt.Printf("cliente[][] %d entrato \n",x )
+			esemplare[TN]--
+			ack_cliente[x] <- 1
+
+		case x:= <-when(esemplare[MR]==0,req_fornitore[MR]):
+			//fmt.Printf("fornitori[MR] %d entrato \n",x )
+			esemplare[MR]=MAX
+			ack_fornitore[x] <- 1
+
+		case x:= <-when(
+			esemplare[MR]==0 && 
+			(len(req_fornitore[MR])==0 || 
+			(len(req_fornitore[MR])>0 && esemplare[MR]>0)),req_fornitore[TN]):
+			//fmt.Printf("fornitori[MR] %d entrato \n",x )
+			esemplare[TN]=MAX
+			ack_fornitore[x] <- 1
+		
+		case x:= <-when(
+			esemplare[MR]==0 && 
+			(len(req_fornitore[MR])==0 && len(req_fornitore[TN])>0) || 
+			(len(req_fornitore[MR])>0 && esemplare[MR]>0 && len(req_fornitore[TN])>0 && esemplare[TN]>0 ),req_fornitore[BD]):
+			//fmt.Printf("fornitori[MR] %d entrato \n",x )
+			esemplare[BD]=MAX
+			ack_fornitore[x] <- 1
+
+		case <-termina_magazzino: //terminazione server
+			fmt.Printf("magazzino # | termina\n")
 			done <- true
 			return
 		}
 	}
 }
 
+func init_chan() {
+	for i := 0; i < 2; i++ { 
+		for j := 0; j < 3; j++ { 
+			req_cliente[i][j]= make(chan int,MAXBUFF) //se prio -> buf
+		}
+	}
+	for i := 0; i < nclienti; i++ { //canali ack per cliente
+			ack_cliente[i]= make(chan int,MAXBUFF) 
+	}
+	for i := 0; i < 3; i++ { 
+			req_fornitore[i]= make(chan int,MAXBUFF) //se prio -> buf
+	}
+	for i := 0; i < nfornitori; i++ { //canali ack per fornitore
+			ack_fornitore[i]= make(chan int,MAXBUFF) 
+	}
+}
+
+func print_chan_len() {
+	for i := 0; i < 2; i++ { 
+		for j := 0; j < 3; j++ { 
+			fmt.Printf("req_cliente[%d][%d]: %d\t",i,j,len(req_cliente[i][j]))
+		}
+	}
+	for i := 0; i < 3; i++ { 
+			fmt.Printf("req_fornitore[%d]: %d\t",i,len(req_fornitore[i]))
+	}
+	
+}
+
 func main() {
+	fmt.Printf("inserisci nclienti (max %d)? ", MAXPROC)
+	fmt.Scanf("%d", &nclienti)
 
-	var n_clienti,n_fornitori int
+	fmt.Printf("inserisci nfornitori (max %d)? ", MAXPROC)
+	fmt.Scanf("%d", &nfornitori)
 
-	fmt.Printf("+++++++		start main		+++++++\n")
-
-	fmt.Printf("inserisci n clienti (max %d)\n",MAX_CLIENTI)
-	fmt.Scanf("%d\n",&n_clienti)
-
-	fmt.Printf("inserisci n fornitori (max %d)\n",MAX_FORNITORI)
-	fmt.Scanf("%d\n",&n_fornitori)
-
-	for i := 0; i < 3; i++ {
-		req_fornitore[i]=make(chan consegna_fornitore,MB)
-	}
-
-	for i := 0; i < 3; i++ {
-		req_privato[i]=make(chan consegna_fornitore,MB)
-	}
-
-	for i := 0; i < 3; i++ {
-		req_negoziante[i]=make(chan consegna_fornitore,MB)
-	}
-
-	for i := 0; i < MAX_CLIENTI; i++ {
-		res_cliente[i]= make(chan int)
-	}
-
-	for i := 0; i < MAX_FORNITORI; i++ {
-		res_fornitore[i]=make(chan int)
-	}
+	init_chan()
 
 	go magazzino()
 
-	for i := 0; i < n_clienti; i++ {
-		go cliente(i)
-	}
-	
-	for i := 0; i < n_fornitori; i++ {
+	for i := 0; i < nfornitori; i++ {
 		go fornitore(i)
 	}
 
-	for i := 0; i < n_clienti+n_fornitori; i++ {
+	for i := 0; i < nclienti; i++ {
+		go cliente(i)
+	}
+
+	//aspetta fornitori 
+	for i := 0; i < nfornitori; i++ {
 		<-done
 	}
-	termina<-true
-	<-done
-	fmt.Printf("+++++++		end main		+++++++\n")
-	
 
+	//aspetta clienti
+	for i := 0; i < nclienti; i++ {
+		<-done
+	}
+
+	//aspetta magazzino 
+	termina_magazzino <- true
+	<-done
+
+	fmt.Printf("FINE\n")
 }

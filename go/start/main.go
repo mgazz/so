@@ -21,4 +21,17 @@ func when(b bool, c chan int) chan int {
 
 //canali
 
+func init_chan() {
+	
+}
 
+func print_chan_len() {
+	
+}
+
+func main() {
+
+	init_chan()
+
+	fmt.Printf("FINE\n")
+}

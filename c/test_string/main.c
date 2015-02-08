@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
 {
 	init();
 	print_status();
+
 	
 	return 0;
 }

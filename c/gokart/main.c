@@ -1,143 +1,114 @@
 #include "main.h"
 
-#define MAXT 5 
+#define MAXT 5 //clienti creati
+
+#define N1 2
+#define N2 2
+
 #define MA 0
 #define MI 1
 
 #define C1 0
 #define C2 1
 
-#define N1 2
-#define N2 2
-
-typedef struct cl
-{
-	int id;
-	int tipo;
-}cl;
-
 typedef struct monitor
 {
 	pthread_mutex_t mut;
-	pthread_cond_t accesso_pista[2];
-	int coda_accesso_pista[2];
-	int kart_occupati[2];
+	pthread_cond_t entrata_cliente[2];
+	int coda_entrata_cliente[2];
 	int kart_in_pista[2];
+	
+	
+	
 
 }monitor;
 
 monitor m;
 
-void init()
+typedef struct cl
 {
-	pthread_mutex_init(&m.mut,NULL);//init
-	for (int i = 0; i < 2; ++i)
-	{
-		m.kart_in_pista[i]=0;
-		m.kart_occupati[i]=0;
-		pthread_cond_init(&m.accesso_pista[i],NULL);
-		m.coda_accesso_pista[i]=0;
-	}
-}
+	int id;
+	int eta;
+	int kart;
+}cl;
 
 cl new_cl(int id)
 {
 	cl s; //struttura
 	s.id = id;
-	s.tipo= rand()%2;
+	s.eta= rand()%2;
+	s.kart=-1;
+
 	return s;
 }
 
-void print_status()
+void print_cliente(cl s, char *message)
 {
-	printf("\t\t------status------\n");
-	for (int i = 0; i < 2; ++i)
+	printf("cliente [%d] | eta:%d kart:%d\t",s.id,s.eta,s.kart);
+	print_message(message);
+}
+
+//cliente  entra
+void in(cl* c)
+{
+	pthread_mutex_lock(&m.mut);
+	//cliente entra in pista
+	if (c->eta==MA) //adulto
 	{
-		printf("\t\tm.coda_accesso_pista[%d]: %d\n",i,m.coda_accesso_pista[i]);
+		while(
+					(m.kart_in_pista[C1]==N1) || 
+					(m.kart_in_pista[C2]==N2) 
+					){ 
+			print_cliente(*c,"entrato in wait");
+			m.coda_entrata_cliente[c->eta]++;
+			pthread_cond_wait(&m.entrata_cliente[c->eta],&m.mut);
+			m.coda_entrata_cliente[c->eta]--;
+		}
+		if (m.kart_in_pista[C2]>0) //stanno girando C2
+		{
+			m.kart_in_pista[C2]++;
+			c->kart=C2;
+		}
+		else { //stanno girando C1
+			m.kart_in_pista[C1]++;
+			c->kart=C1;
+		}
 	}
-	for (int i = 0; i < 2; ++i)
-	{
-		printf("\t\tm.kart_in_pista[%d]: %d\n",i,m.kart_in_pista[i]); 
+	else { //minorenne
+			while(
+						(m.kart_in_pista[C2]==N2) ||
+						(m.kart_in_pista[C1]>0)
+						){ 
+				print_cliente(*c,"entrato in wait");
+				m.coda_entrata_cliente[c->eta]++;
+				pthread_cond_wait(&m.entrata_cliente[c->eta],&m.mut);
+				m.coda_entrata_cliente[c->eta]--;
+			}
+			m.kart_in_pista[C2]++;
+			c->kart=C2;
 	}
-	for (int i = 0; i < 2; ++i)
-	{
-		printf("\t\tm.kart_occupati[%d]: %d\n",i,m.kart_occupati[i]);
-	}
-	printf("\t\t------------------\n");
+	print_cliente(*c,"entra");
+	print_status();
+	pthread_mutex_unlock(&m.mut);
 }
 
 void signal()
 {
-	if (m.coda_accesso_pista[MA]>0)
+	if (m.coda_entrata_cliente[MA]>0)
 	{
-		pthread_cond_signal(&m.coda_accesso_pista[MA]);
-	}
-	else if (m.coda_accesso_pista[MI]>0) {
-		pthread_cond_signal(&m.coda_accesso_pista[MI]);
-	}
-	else {
-		printf("signal @ | code di accesso vuote!\n");
+		pthread_cond_signal(&m.entrata_cliente[MA]);
+	} else if (m.coda_entrata_cliente[MI]>0){
+		pthread_cond_signal(&m.entrata_cliente[MI]);
+	} else {
+		printf("@@@ code vuote @@@\n");
 	}
 }
-
-//cliente  entra
-void in(cl c)
-{
-	pthread_mutex_lock(&m.mut);
-	if (c.tipo==MA)
-	{
-		while(
-					m.kart_in_pista[MI]>0||
-					m.kart_occupati[C1]==N1||
-					m.kart_occupati[C2]==N2
-					){ //condizione di wait
-			m.coda_accesso_pista[MA]++;
-			pthread_cond_wait(&m.accesso_pista[MA],&m.mut);
-			m.coda_accesso_pista[MA]--;
-		}
-		if (m.kart_occupati[C1]<N1)
-		{
-			m.kart_occupati[C1]++;
-		}
-		else if (m.kart_occupati[C2]<N2) {
-			m.kart_occupati[C2]++;
-		}
-		else {
-			printf("cliente [%d]  errore su scelta cilindrata kart\n",c.id);
-		}
-		printf("cliente [%d]  consentito accesso\n",c.id);
-		m.kart_in_pista[MA]++;
-		print_status();
-	}
-	else if (c.tipo==MI) {
-		while(
-					m.kart_in_pista[MA]>0||
-					m.kart_occupati[C2]==N2
-					){ //condizione di wait
-			m.coda_accesso_pista[MI]++;
-			pthread_cond_wait(&m.accesso_pista[MI],&m.mut);
-			m.coda_accesso_pista[MI]--;
-		}
-		if (m.kart_occupati[C2]<N2) {
-			m.kart_occupati[C2]++;
-		}
-		else {
-			printf("cliente [%d]  errore su scelta cilindrata kart\n",c.id);
-		}
-		printf("cliente [%d]  consentito accesso\n",c.id);
-		m.kart_in_pista[MI]++;
-		print_status();
-	}
-	pthread_mutex_unlock(&m.mut);
-}
-
 //cliente  esce
-void out(cl c)
+void out(cl* c)
 {
 	pthread_mutex_lock(&m.mut);
-	m.kart_occupati[c.tipo]--;
-	m.kart_in_pista[c.tipo]--;
-	printf("cliente [%d]  esce\n",c.id);
+	m.kart_in_pista[c->kart]--;
+	print_cliente(*c,"esce");
 	print_status();
 	signal();
 	pthread_mutex_unlock(&m.mut);
@@ -148,22 +119,52 @@ void* cliente(void* arg)
 	int id = (int)arg;
 	cl c;
 	c=new_cl(id);
-	printf("cliente [%d] creato tipo: %d\n",id,c.tipo);
-
-	in(c);
+	/*print_cliente(c,"creato");*/
 	sleep(rand()%5);
-	out(c);
+	in(&c);
+	sleep(rand()%5+3);
+	out(&c);
 	
 	pthread_exit(NULL);
 }
+
+
+void init()
+{
+	pthread_mutex_init(&m.mut,NULL);
+	for (int i = 0; i < 2; ++i)
+	{
+		pthread_cond_init(&m.entrata_cliente[i],NULL);
+		m.coda_entrata_cliente[i]=0;
+		m.kart_in_pista[i]=0;
+	}
+}
+
+void print_status()
+{
+	printf("\t\t------status------\n");
+
+	for (int i = 0; i < 2; ++i)
+	{
+		printf("\t\tm.coda_entrata_cliente[%d]: %d\n",i,m.coda_entrata_cliente[i]);
+	}
+	for (int i = 0; i < 2; ++i)
+	{
+		printf("\t\tm.kart_in_pista[%d]: %d\n",i,m.kart_in_pista[i]); 
+	}
+
+	printf("\t\t------------------\n");
+}
+
+
 
 int main(int argc, char *argv[])
 {
 	init();
 	print_status();
 	pthread_t clienti[MAXT];
-	
-	
+
+
 	//creazione clienti
 	for (int i = 0; i < MAXT; ++i)
 	{
@@ -173,7 +174,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
-	
+
 	//wait clienti
 	for (int i = 0; i < MAXT; ++i)
 	{
@@ -185,7 +186,5 @@ int main(int argc, char *argv[])
 			printf("thread cliente [%d] termiato con successo\n", i);
 		}
 	}
-
-	
 	return 0;
 }
