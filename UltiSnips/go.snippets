@@ -73,7 +73,6 @@ endsnippet
 
 snippet cond "case for server:" b
 case x:= <-when(true,req_${1:client}):
-	//fmt.Printf("$1 %d entrato \n",x )
 	n${3:var}++
 	ack_[x] <- 1
 

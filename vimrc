@@ -76,8 +76,6 @@ set incsearch
 " Remember info about open buffers on close
 set viminfo^=%
 
-set cinoptions+=(0
-
 "======================================
 
 
@@ -259,8 +257,6 @@ endif
 "LN_Clang
 "
 au FileType c nmap <Leader>gr :!make && ./main<cr>
-
-"======================================
 
 "
 "LN_Golang
@@ -601,5 +597,6 @@ endfunction
 
 "TS_TestSection
 "------------------- Test-section  ----------------------- 
+"
 "
 "---------------------------------------------------- 
