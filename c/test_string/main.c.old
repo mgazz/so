@@ -39,6 +39,10 @@ int main(int argc, char *argv[])
 		}
 	}
 	sleep(10);
-	printf("termino e me ne fotto\n");
+	printf("adesso li ammazzo\n");
+	for (int i = 0; i < MAXT; ++i)
+	{
+		pthread_kill(clienti[i],SIGUSR1);
+	}
 	return 0;
 }

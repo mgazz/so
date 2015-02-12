@@ -16,18 +16,12 @@ void* cliente(void* arg)
 	}
 }
 
-void kill()
-{
-	printf("segnalato termine\n");
-	exit(0);
-}
 
 int main(int argc, char *argv[])
 {
 	pthread_t clienti[MAXT];
 	sem_init(&cond_stop,0,0);
 	
-	signal(SIGUSR1,kill);//prima di pthread_create
 	
 	//creazione clienti
 	for (int i = 0; i < MAXT; ++i)
@@ -39,6 +33,10 @@ int main(int argc, char *argv[])
 		}
 	}
 	sleep(10);
-	printf("termino e me ne fotto\n");
+	printf("adesso li ammazzo\n");
+	for (int i = 0; i < MAXT; ++i)
+	{
+		pthread_kill(clienti[i],SIGKILL);
+	}
 	return 0;
 }

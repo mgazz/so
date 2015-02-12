@@ -17,10 +17,6 @@ typedef struct monitor
 	pthread_cond_t entrata_cliente[2];
 	int coda_entrata_cliente[2];
 	int kart_in_pista[2];
-	
-	
-	
-
 }monitor;
 
 monitor m;

@@ -1,9 +1,4 @@
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <semaphore.h>
-#include <museo.h>
+#include "main.h"
 
 #define MAX 10 //porta fuori
 #define NDEV 10
@@ -22,7 +17,7 @@ typedef struct museo
 	pthread_mutex_cond dev_disp;
 
 	bool visitando; // dice se stanno visitando o no
-	int n_vis_gruppo
+	int n_vis_gruppo;
 	int n_vis_coda;
 	int n_dev_disp;;
 

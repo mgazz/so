@@ -602,4 +602,9 @@ endfunction
 "TS_TestSection
 "------------------- Test-section  ----------------------- 
 "
+
+function! CatchUri()
+
+endfunction
+
 "---------------------------------------------------- 

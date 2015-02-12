@@ -94,6 +94,7 @@ void* processo(void* arg)
 	}
 	pthread_exit(NULL);
 }
+
 void* gestore(void* arg)
 {
 	int id = (int)arg;
